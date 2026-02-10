@@ -338,6 +338,17 @@
                 font-size: 24px;
             }
         }
+
+        @keyframes highlight {
+            0%, 100% {
+                box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+                transform: translateY(0);
+            }
+            50% {
+                box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+                transform: translateY(-4px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -3087,7 +3098,7 @@
 
             // 담당자 필터 채우기
             const managers = [...new Set(allSchedules
-                .filter(s => s.담당자)
+                .filter(s => s.담당자 && s.담당자 !== 'nan' && typeof s.담당자 === 'string')
                 .flatMap(s => s.담당자.split(',').map(m => m.trim()))
             )].sort();
             
@@ -3102,7 +3113,7 @@
             // 외주 필터 채우기 (고유 외주사만)
             const vendorsSet = new Set();
             allSchedules.forEach(s => {
-                if (s.외주) {
+                if (s.외주 && s.외주 !== 'nan' && typeof s.외주 === 'string') {
                     // 괄호와 숫자 제거하고 외주사 이름만 추출
                     const vendors = s.외주.split(',').map(v => {
                         return v.replace(/\([^)]*\)/g, '').trim().replace(/\n/g, '');
@@ -3194,26 +3205,30 @@
                 // 주차 필터 (주차가 선택되면 해당 주의 모든 스케줄 표시)
                 if (weekFilter && schedule.주 !== weekFilter) return false;
 
-                // 주차가 선택된 경우, 담당자와 외주 필터는 추가 필터로만 작동
-                // 주차가 선택되지 않은 경우에만 담당자/외주 필터가 필수
-                if (!weekFilter) {
-                    // 담당자 필터
-                    if (managerFilter && schedule.담당자 && 
-                        !schedule.담당자.includes(managerFilter)) return false;
-
-                    // 외주 필터
-                    if (vendorFilter && schedule.외주) {
-                        const cleanVendor = schedule.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '');
-                        if (!cleanVendor.includes(vendorFilter)) return false;
+                // 담당자 필터 - 정확한 매칭
+                if (managerFilter) {
+                    const 담당자 = schedule.담당자;
+                    // 담당자가 없거나 NaN인 경우 제외
+                    if (!담당자 || 담당자 === 'nan' || typeof 담당자 !== 'string') {
+                        return false;
                     }
-                } else {
-                    // 주차가 선택된 경우, 담당자/외주는 선택적 필터
-                    if (managerFilter && schedule.담당자 && 
-                        !schedule.담당자.includes(managerFilter)) return false;
+                    // 쉼표로 구분된 담당자 목록에서 정확히 일치하는지 확인
+                    const 담당자목록 = 담당자.split(',').map(m => m.trim());
+                    if (!담당자목록.includes(managerFilter)) {
+                        return false;
+                    }
+                }
 
-                    if (vendorFilter && schedule.외주) {
-                        const cleanVendor = schedule.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '');
-                        if (!cleanVendor.includes(vendorFilter)) return false;
+                // 외주 필터 - 정확한 매칭
+                if (vendorFilter) {
+                    const 외주 = schedule.외주;
+                    // 외주가 없거나 NaN인 경우 제외
+                    if (!외주 || 외주 === 'nan' || typeof 외주 !== 'string') {
+                        return false;
+                    }
+                    const cleanVendor = 외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '');
+                    if (!cleanVendor.includes(vendorFilter)) {
+                        return false;
                     }
                 }
 
@@ -3270,12 +3285,39 @@
             
             grid.innerHTML = sortedDates.map(date => {
                 const schedules = grouped[date];
-                return schedules.map(schedule => createScheduleCard(schedule)).join('');
+                return schedules.map(schedule => createScheduleCard(schedule, date)).join('');
             }).join('');
+
+            // 렌더링 완료 후 오늘 날짜로 스크롤
+            scrollToToday();
+        }
+
+        // 오늘 날짜 카드로 자동 스크롤
+        function scrollToToday() {
+            // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 스크롤
+            setTimeout(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayStr = today.toISOString().split('T')[0];
+                
+                // 오늘 날짜를 가진 카드 찾기
+                const todayCard = document.querySelector(`[data-date="${todayStr}"]`);
+                
+                if (todayCard) {
+                    // 부드러운 스크롤
+                    todayCard.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center'
+                    });
+                    
+                    // 오늘 날짜 카드 강조 (잠깐 깜빡이는 효과)
+                    todayCard.style.animation = 'highlight 2s ease-in-out';
+                }
+            }, 300);
         }
 
         // 스케줄 카드 생성
-        function createScheduleCard(schedule) {
+        function createScheduleCard(schedule, date) {
             const 구분Badge = schedule.구분 === 'A/S' ? 
                 '<span class="badge as">A/S</span>' : 
                 '<span class="badge claim">CLAIM</span>';
@@ -3286,7 +3328,7 @@
                 '<span class="badge paid">유상</span>' : '';
 
             return `
-                <div class="schedule-card">
+                <div class="schedule-card" data-date="${date}">
                     <div class="card-header">
                         <div class="card-date">
                             <div class="date-main">${formatDate(schedule.일자)}</div>
@@ -3322,13 +3364,13 @@
                             <div class="info-value">${schedule.검사종류_고객요청사항}</div>
                         </div>` : ''}
                         
-                        ${schedule.담당자 ? `
+                        ${schedule.담당자 && schedule.담당자 !== 'nan' ? `
                         <div class="info-row">
                             <div class="info-label">담당자</div>
                             <div class="info-value highlight">${schedule.담당자}</div>
                         </div>` : ''}
                         
-                        ${schedule.외주 ? `
+                        ${schedule.외주 && schedule.외주 !== 'nan' ? `
                         <div class="info-row">
                             <div class="info-label">외주</div>
                             <div class="info-value">${schedule.외주}</div>
@@ -3340,7 +3382,7 @@
                             <div class="info-value">${schedule.출장인원}명</div>
                         </div>` : ''}
                         
-                        ${schedule.비고 ? `
+                        ${schedule.비고 && schedule.비고 !== 'nan' ? `
                         <div class="info-row">
                             <div class="info-label">비고</div>
                             <div class="info-value">${schedule.비고.replace(/\n/g, '<br>')}</div>
