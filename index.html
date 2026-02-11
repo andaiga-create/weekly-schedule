@@ -3298,22 +3298,52 @@
             setTimeout(() => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const todayStr = today.toISOString().split('T')[0];
                 
-                // 오늘 날짜를 가진 카드 찾기
-                const todayCard = document.querySelector(`[data-date="${todayStr}"]`);
+                // 로컬 시간대를 사용한 날짜 문자열 생성 (YYYY-MM-DD)
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const todayStr = `${year}-${month}-${day}`;
                 
-                if (todayCard) {
-                    // 부드러운 스크롤
-                    todayCard.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center'
+                // 모든 카드 가져오기
+                const allCards = document.querySelectorAll('.schedule-card[data-date]');
+                
+                if (allCards.length === 0) return;
+                
+                // 오늘 날짜 카드 먼저 찾기
+                let targetCard = document.querySelector(`[data-date="${todayStr}"]`);
+                
+                // 오늘 날짜 카드가 없으면 가장 가까운 미래 날짜 찾기
+                if (!targetCard) {
+                    let closestFutureCard = null;
+                    let minDiff = Infinity;
+                    
+                    allCards.forEach(card => {
+                        const cardDateStr = card.getAttribute('data-date');
+                        const cardDate = new Date(cardDateStr + 'T00:00:00');
+                        const diff = cardDate - today;
+                        
+                        // 오늘 이후의 날짜 중 가장 가까운 것
+                        if (diff >= 0 && diff < minDiff) {
+                            minDiff = diff;
+                            closestFutureCard = card;
+                        }
                     });
                     
-                    // 오늘 날짜 카드 강조 (잠깐 깜빡이는 효과)
-                    todayCard.style.animation = 'highlight 2s ease-in-out';
+                    targetCard = closestFutureCard || allCards[0];
                 }
-            }, 300);
+                
+                if (targetCard) {
+                    // 부드러운 스크롤
+                    targetCard.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start'
+                    });
+                    
+                    // 카드 강조 효과
+                    targetCard.style.animation = 'highlight 2s ease-in-out';
+                }
+            }, 500);
         }
 
         // 스케줄 카드 생성
