@@ -572,13 +572,13 @@
                     일자_str: dateStr,
                     구분: item['구분'] || '',
                     인도일: item['인도일'] || '',
-                    조선소_장소: item['조선소/장소'] || '',
-                    호선: item['호선'] || '',
+                    조선소_장소: item['조선소\r\n장소'] || item['조선소/장소'] || '',
+                    호선: item['호 선'] || item['호선'] || '',
                     장비: item['장비'] || '',
-                    검사종류_고객요청사항: item['검사종류/고객요청사항'] || '',
+                    검사종류_고객요청사항: item['검사종류 / 고객요청사항'] || item['검사종류/고객요청사항'] || '',
                     담당자: item['담당자'] || '',
                     외주: item['외주'] || '',
-                    유무상: item['유무상'] || '',
+                    유무상: item['유/무상'] || item['유무상'] || '',
                     차량: item['차량'],
                     출장인원: item['출장인원'] || '',
                     비고: item['비고'] || ''
@@ -587,10 +587,10 @@
             
             console.log('변환 완료 - 전체 항목:', allSchedules.length);
             
-            // 첫 5개 항목의 주차 및 유무상 정보 확인
-            console.log('주차 및 유무상 샘플:');
+            // 첫 5개 항목의 주차, 유무상, 검사종류 정보 확인
+            console.log('주차, 유무상, 검사종류 샘플:');
             allSchedules.slice(0, 5).forEach((s, i) => {
-                console.log(`  [${i}] 일자: ${s.일자} → 주차: ${s.주}, 유무상: "${s.유무상}" (타입: ${typeof s.유무상})`);
+                console.log(`  [${i}] 일자: ${s.일자} → 주차: ${s.주}, 유무상: "${s.유무상}", 검사종류: "${s.검사종류_고객요청사항}"`);
             });
             
             // 필터링: 날짜가 없거나 구분이 빈칸인 항목 제거
@@ -1034,20 +1034,20 @@
                     <div class="card-body">
                         ${schedule.조선소_장소 ? `
                         <div class="info-row">
-                            <div class="info-label">조선소/장소</div>
+                            <div class="info-label">조선소(장소)</div>
                             <div class="info-value highlight">${schedule.조선소_장소}</div>
-                        </div>` : ''}
-                        
-                        ${schedule.호선 ? `
-                        <div class="info-row">
-                            <div class="info-label">호선</div>
-                            <div class="info-value">${schedule.호선}</div>
                         </div>` : ''}
                         
                         ${schedule.장비 ? `
                         <div class="info-row">
                             <div class="info-label">장비</div>
                             <div class="info-value">${schedule.장비}</div>
+                        </div>` : ''}
+                        
+                        ${schedule.호선 ? `
+                        <div class="info-row">
+                            <div class="info-label">호선</div>
+                            <div class="info-value">${schedule.호선}</div>
                         </div>` : ''}
                         
                         ${schedule.검사종류_고객요청사항 ? `
