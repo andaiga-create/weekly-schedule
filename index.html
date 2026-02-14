@@ -582,10 +582,10 @@
             
             console.log('변환 완료 - 전체 항목:', allSchedules.length);
             
-            // 첫 5개 항목의 주차 정보 확인
-            console.log('주차 계산 샘플:');
+            // 첫 5개 항목의 주차 및 유무상 정보 확인
+            console.log('주차 및 유무상 샘플:');
             allSchedules.slice(0, 5).forEach((s, i) => {
-                console.log(`  [${i}] 일자: ${s.일자} → 주차: ${s.주}`);
+                console.log(`  [${i}] 일자: ${s.일자} → 주차: ${s.주}, 유무상: "${s.유무상}" (타입: ${typeof s.유무상})`);
             });
             
             // 필터링: 날짜가 없거나 구분이 빈칸인 항목 제거
@@ -1001,10 +1001,18 @@
                 '<span class="badge as">A/S</span>' : 
                 '<span class="badge claim">CLAIM</span>';
             
-            const 유무상Badge = schedule.유무상 === '무상' ? 
-                '<span class="badge free">무상</span>' : 
-                schedule.유무상 === '유상' ? 
-                '<span class="badge paid">유상</span>' : '';
+            // 유무상 정보 처리 (다양한 형식 지원)
+            let 유무상Badge = '';
+            const 유무상Value = schedule.유무상;
+            
+            if (유무상Value) {
+                const 유무상Str = String(유무상Value).trim();
+                if (유무상Str.includes('무상') || 유무상Str === '무상') {
+                    유무상Badge = '<span class="badge free">무상</span>';
+                } else if (유무상Str.includes('유상') || 유무상Str === '유상') {
+                    유무상Badge = '<span class="badge paid">유상</span>';
+                }
+            }
 
             return `
                 <div class="schedule-card" data-date="${date}">
