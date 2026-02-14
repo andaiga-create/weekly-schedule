@@ -914,35 +914,75 @@
                 const day = String(today.getDate()).padStart(2, '0');
                 const todayStr = `${year}-${month}-${day}`;
                 
+                console.log('=== 자동 스크롤 시작 ===');
+                console.log('오늘 날짜:', todayStr);
+                
                 // 모든 카드 가져오기
                 const allCards = document.querySelectorAll('.schedule-card[data-date]');
                 
-                if (allCards.length === 0) return;
+                if (allCards.length === 0) {
+                    console.log('카드가 없습니다.');
+                    return;
+                }
                 
-                // 오늘 날짜 카드 먼저 찾기
+                // 1. 오늘 날짜 카드 먼저 찾기
                 let targetCard = document.querySelector(`[data-date="${todayStr}"]`);
                 
-                // 오늘 날짜 카드가 없으면 가장 가까운 미래 날짜 찾기
-                if (!targetCard) {
-                    let closestFutureCard = null;
+                if (targetCard) {
+                    console.log('오늘 날짜 카드 발견');
+                } else {
+                    console.log('오늘 날짜 카드 없음, 가장 가까운 과거 날짜 찾기');
+                    
+                    // 2. 가장 가까운 과거 날짜 찾기 (어제, 그제...)
+                    let closestPastCard = null;
                     let minDiff = Infinity;
                     
                     allCards.forEach(card => {
                         const cardDateStr = card.getAttribute('data-date');
                         const cardDate = new Date(cardDateStr + 'T00:00:00');
-                        const diff = cardDate - today;
+                        const diff = today - cardDate; // 과거는 양수
                         
-                        // 오늘 이후의 날짜 중 가장 가까운 것
-                        if (diff >= 0 && diff < minDiff) {
+                        // 오늘 이전의 날짜 중 가장 가까운 것
+                        if (diff > 0 && diff < minDiff) {
                             minDiff = diff;
-                            closestFutureCard = card;
+                            closestPastCard = card;
                         }
                     });
                     
-                    targetCard = closestFutureCard || allCards[0];
+                    if (closestPastCard) {
+                        targetCard = closestPastCard;
+                        const pastDate = targetCard.getAttribute('data-date');
+                        console.log('가장 가까운 과거 날짜:', pastDate);
+                    } else {
+                        // 3. 과거 일정도 없으면 가장 가까운 미래 날짜
+                        console.log('과거 일정 없음, 가장 가까운 미래 날짜 찾기');
+                        let closestFutureCard = null;
+                        minDiff = Infinity;
+                        
+                        allCards.forEach(card => {
+                            const cardDateStr = card.getAttribute('data-date');
+                            const cardDate = new Date(cardDateStr + 'T00:00:00');
+                            const diff = cardDate - today;
+                            
+                            // 오늘 이후의 날짜 중 가장 가까운 것
+                            if (diff >= 0 && diff < minDiff) {
+                                minDiff = diff;
+                                closestFutureCard = card;
+                            }
+                        });
+                        
+                        targetCard = closestFutureCard || allCards[0];
+                        
+                        if (targetCard) {
+                            const futureDate = targetCard.getAttribute('data-date');
+                            console.log('가장 가까운 미래 날짜:', futureDate);
+                        }
+                    }
                 }
                 
                 if (targetCard) {
+                    console.log('스크롤 대상:', targetCard.getAttribute('data-date'));
+                    
                     // 부드러운 스크롤
                     targetCard.scrollIntoView({ 
                         behavior: 'smooth', 
