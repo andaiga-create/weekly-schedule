@@ -499,6 +499,23 @@
             }
         }
 
+        // 날짜로부터 주차 계산 (YYYY년 N주 형식)
+        function getWeekFromDate(dateStr) {
+            const date = new Date(dateStr);
+            const year = date.getFullYear();
+            
+            // 해당 연도의 1월 1일
+            const yearStart = new Date(year, 0, 1);
+            
+            // 1월 1일부터 해당 날짜까지의 일수
+            const daysDiff = Math.floor((date - yearStart) / (24 * 60 * 60 * 1000));
+            
+            // 주차 계산 (1월 1일이 속한 주를 1주로)
+            const weekNumber = Math.ceil((daysDiff + yearStart.getDay() + 1) / 7);
+            
+            return `${weekNumber}주`;
+        }
+
         // Excel 데이터 처리 및 변환
         function processExcelData(jsonData) {
             console.log('========== 데이터 처리 시작 ==========');
@@ -545,7 +562,7 @@
                 }
 
                 return {
-                    주: item['주'] || '',
+                    주: dateStr ? getWeekFromDate(dateStr) : '', // 일자 기준으로 주차 자동 계산
                     일자: dateStr,
                     일자_str: dateStr,
                     구분: item['구분'] || '',
@@ -564,6 +581,12 @@
             });
             
             console.log('변환 완료 - 전체 항목:', allSchedules.length);
+            
+            // 첫 5개 항목의 주차 정보 확인
+            console.log('주차 계산 샘플:');
+            allSchedules.slice(0, 5).forEach((s, i) => {
+                console.log(`  [${i}] 일자: ${s.일자} → 주차: ${s.주}`);
+            });
             
             // 필터링: 날짜가 없거나 구분이 빈칸인 항목 제거
             const beforeFilter = allSchedules.length;
@@ -618,53 +641,28 @@
             while (vendorFilter.options.length > 1) vendorFilter.remove(1);
         }
 
-        // 현재 주차 계산 - 오늘 날짜가 속한 주의 스케줄 찾기
+        // 현재 주차 계산 - 오늘 날짜가 속한 주차 반환
         function getCurrentWeek() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            console.log('=== 현재 주차 찾기 ===');
-            console.log('오늘 날짜:', today.toISOString().split('T')[0]);
+            const todayStr = today.toISOString().split('T')[0];
+            const currentWeek = getWeekFromDate(todayStr);
             
-            // 1. 먼저 오늘 날짜가 정확히 일치하는 스케줄의 주차 찾기
-            for (let schedule of allSchedules) {
-                const scheduleDate = new Date(schedule.일자);
-                scheduleDate.setHours(0, 0, 0, 0);
-                
-                if (scheduleDate.getTime() === today.getTime()) {
-                    console.log('오늘 날짜와 일치하는 스케줄 발견:', schedule.주);
-                    return schedule.주;
-                }
+            console.log('=== 현재 주차 계산 ===');
+            console.log('오늘 날짜:', todayStr);
+            console.log('오늘의 주차:', currentWeek);
+            
+            // 데이터에 현재 주차가 있는지 확인
+            const hasCurrentWeek = allSchedules.some(s => s.주 === currentWeek);
+            console.log('데이터에 현재 주차 존재 여부:', hasCurrentWeek);
+            
+            if (hasCurrentWeek) {
+                return currentWeek;
             }
             
-            // 2. 오늘이 속한 주의 월요일부터 일요일 범위 계산
-            const dayOfWeek = today.getDay(); // 0(일) ~ 6(토)
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-            monday.setHours(0, 0, 0, 0);
-            
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 6);
-            sunday.setHours(23, 59, 59, 999);
-            
-            console.log('이번 주 범위:', monday.toISOString().split('T')[0], '~', sunday.toISOString().split('T')[0]);
-            
-            // 3. 이번 주 범위에 속하는 스케줄의 주차 찾기
-            const thisWeekSchedules = allSchedules.filter(schedule => {
-                const scheduleDate = new Date(schedule.일자);
-                scheduleDate.setHours(0, 0, 0, 0);
-                return scheduleDate >= monday && scheduleDate <= sunday;
-            });
-            
-            if (thisWeekSchedules.length > 0) {
-                // 같은 주차가 여러 개 있을 수 있으므로 첫 번째 것 사용
-                const weekFromSchedule = thisWeekSchedules[0].주;
-                console.log('이번 주에 해당하는 스케줄 발견:', weekFromSchedule, '(스케줄 수:', thisWeekSchedules.length + ')');
-                return weekFromSchedule;
-            }
-            
-            // 4. 이번 주에 스케줄이 없으면 가장 가까운 미래 주차 찾기
-            console.log('이번 주에 스케줄 없음, 가장 가까운 미래 주차 찾기');
+            // 현재 주차에 스케줄이 없으면 가장 가까운 미래 주차 찾기
+            console.log('현재 주차에 스케줄 없음, 가장 가까운 미래 주차 찾기');
             let closestFutureWeek = null;
             let minDiff = Infinity;
             
@@ -685,8 +683,8 @@
                 return closestFutureWeek;
             }
             
-            // 5. 미래 스케줄도 없으면 가장 가까운 과거 주차
-            let closestPastWeek = null;
+            // 미래 스케줄도 없으면 가장 가까운 주차 (과거 포함)
+            let closestWeek = null;
             minDiff = Infinity;
             
             for (let schedule of allSchedules) {
@@ -695,12 +693,12 @@
                 
                 if (diff < minDiff) {
                     minDiff = diff;
-                    closestPastWeek = schedule.주;
+                    closestWeek = schedule.주;
                 }
             }
             
-            console.log('가장 가까운 주차(과거 포함):', closestPastWeek);
-            return closestPastWeek;
+            console.log('가장 가까운 주차(과거 포함):', closestWeek);
+            return closestWeek;
         }
 
         // 데이터 초기화
