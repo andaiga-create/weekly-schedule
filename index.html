@@ -522,6 +522,11 @@
             console.log('원본 데이터 샘플:', jsonData[0]); // 디버깅용
             console.log('원본 데이터 전체 개수:', jsonData.length);
             
+            // 컬럼명 확인
+            if (jsonData.length > 0) {
+                console.log('Excel 컬럼명 목록:', Object.keys(jsonData[0]));
+            }
+            
             allSchedules = jsonData.map((item, index) => {
                 // Excel 날짜를 JavaScript 날짜로 변환
                 let dateStr = item['일자'];
