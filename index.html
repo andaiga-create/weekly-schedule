@@ -706,61 +706,117 @@
             return closestWeek;
         }
 
-        // 데이터 초기화
-        function initializeData() {
-            if (allSchedules.length === 0) {
-                return;
-            }
+        // 데이터에서 주차 목록 추출 (숫자 순 정렬, NaN 등 비정상값 제외)
+        function extractWeeks(data) {
+            return [...new Set(data.map(s => s.주))]
+                .filter(w => w && /^\d+주$/.test(String(w).trim()))
+                .sort((a, b) => parseInt(a) - parseInt(b));
+        }
 
-            // 필터 초기화
-            clearFilters();
-
-            // 주차 필터 채우기
-            updateWeekFilter();
-
-            // 담당자 필터 채우기
-            const managers = [...new Set(allSchedules
+        // 데이터에서 담당자 목록 추출
+        function extractManagers(data) {
+            return [...new Set(data
                 .filter(s => s.담당자 && s.담당자 !== 'nan' && typeof s.담당자 === 'string')
                 .flatMap(s => s.담당자.split(',').map(m => m.trim()))
             )].sort();
-            
-            const managerFilter = document.getElementById('managerFilter');
-            managers.forEach(manager => {
-                const option = document.createElement('option');
-                option.value = manager;
-                option.textContent = manager;
-                managerFilter.appendChild(option);
-            });
+        }
 
-            // 외주 필터 채우기 (고유 외주사만)
+        // 데이터에서 외주 목록 추출
+        function extractVendors(data) {
             const vendorsSet = new Set();
-            allSchedules.forEach(s => {
+            data.forEach(s => {
                 if (s.외주 && s.외주 !== 'nan' && typeof s.외주 === 'string') {
-                    // 괄호와 숫자 제거하고 외주사 이름만 추출
-                    const vendors = s.외주.split(',').map(v => {
-                        return v.replace(/\([^)]*\)/g, '').trim().replace(/\n/g, '');
-                    });
-                    vendors.forEach(v => {
-                        if (v && v !== '?' && v !== '외주') {
-                            vendorsSet.add(v);
-                        }
-                    });
+                    s.외주.split(',').map(v => v.replace(/\([^)]*\)/g, '').trim().replace(/\n/g, ''))
+                        .forEach(v => { if (v && v !== '?' && v !== '외주') vendorsSet.add(v); });
                 }
             });
-            
-            const vendors = [...vendorsSet].sort();
-            const vendorFilter = document.getElementById('vendorFilter');
-            vendors.forEach(vendor => {
-                const option = document.createElement('option');
-                option.value = vendor;
-                option.textContent = vendor;
-                vendorFilter.appendChild(option);
+            return [...vendorsSet].sort();
+        }
+
+        // 선택값을 유지하면서 select 옵션 업데이트
+        function updateSelectOptions(selectEl, items, prevValue) {
+            while (selectEl.options.length > 1) selectEl.remove(1);
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.textContent = item;
+                selectEl.appendChild(opt);
+            });
+            selectEl.value = items.includes(prevValue) ? prevValue : '';
+        }
+
+        // 3개 필터를 현재 선택 기준으로 연동 갱신
+        function updateLinkedFilters() {
+            const weekEl    = document.getElementById('weekFilter');
+            const managerEl = document.getElementById('managerFilter');
+            const vendorEl  = document.getElementById('vendorFilter');
+
+            const selWeek    = weekEl.value;
+            const selManager = managerEl.value;
+            const selVendor  = vendorEl.value;
+
+            // 주차 옵션: manager + vendor 기준 데이터에서 추출
+            const forWeek = allSchedules.filter(s => {
+                const mOk = !selManager || (s.담당자 && typeof s.담당자 === 'string' &&
+                    s.담당자.split(',').map(m => m.trim()).includes(selManager));
+                const vOk = !selVendor  || (s.외주 && typeof s.외주 === 'string' &&
+                    s.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '').includes(selVendor));
+                return mOk && vOk;
             });
 
-            // 필터 이벤트 리스너
-            document.getElementById('weekFilter').addEventListener('change', applyFilters);
-            managerFilter.addEventListener('change', applyFilters);
-            vendorFilter.addEventListener('change', applyFilters);
+            // 담당자 옵션: week + vendor 기준 데이터에서 추출
+            const forManager = allSchedules.filter(s => {
+                const wOk = !selWeek   || s.주 === selWeek;
+                const vOk = !selVendor || (s.외주 && typeof s.외주 === 'string' &&
+                    s.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '').includes(selVendor));
+                return wOk && vOk;
+            });
+
+            // 외주 옵션: week + manager 기준 데이터에서 추출
+            const forVendor = allSchedules.filter(s => {
+                const wOk = !selWeek    || s.주 === selWeek;
+                const mOk = !selManager || (s.담당자 && typeof s.담당자 === 'string' &&
+                    s.담당자.split(',').map(m => m.trim()).includes(selManager));
+                return wOk && mOk;
+            });
+
+            updateSelectOptions(weekEl,    extractWeeks(forWeek),       selWeek);
+            updateSelectOptions(managerEl, extractManagers(forManager), selManager);
+            updateSelectOptions(vendorEl,  extractVendors(forVendor),   selVendor);
+        }
+
+        // 데이터 초기화
+        function initializeData() {
+            if (allSchedules.length === 0) return;
+
+            const weekEl    = document.getElementById('weekFilter');
+            const managerEl = document.getElementById('managerFilter');
+            const vendorEl  = document.getElementById('vendorFilter');
+
+            // 초기 전체 옵션 세팅
+            clearFilters();
+            updateWeekFilter();  // 주차 (현재 주차 자동 선택 포함)
+            extractManagers(allSchedules).forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                managerEl.appendChild(opt);
+            });
+            extractVendors(allSchedules).forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v; opt.textContent = v;
+                vendorEl.appendChild(opt);
+            });
+
+            // 주차가 기본 선택된 상태에서 연동 갱신 (담당자/외주 목록 좁히기)
+            updateLinkedFilters();
+
+            // 필터 이벤트 리스너: 변경 시 연동 갱신 → 렌더링
+            [weekEl, managerEl, vendorEl].forEach(el => {
+                el.addEventListener('change', () => {
+                    updateLinkedFilters();
+                    applyFilters();
+                });
+            });
 
             applyFilters();
         }
@@ -774,12 +830,10 @@
                 weekFilter.remove(1);
             }
             
-            // 주차 목록 추출 및 정렬
-            const weeks = [...new Set(allSchedules.map(s => s.주))].sort((a, b) => {
-                const numA = parseInt(a);
-                const numB = parseInt(b);
-                return numA - numB;
-            });
+            // 주차 목록 추출 및 정렬 (숫자 형식만, 순차 정렬)
+            const weeks = [...new Set(allSchedules.map(s => s.주))]
+                .filter(w => w && /^\d+주$/.test(String(w).trim()))
+                .sort((a, b) => parseInt(a) - parseInt(b));
             
             console.log('=== 주차 필터 업데이트 ===');
             console.log('전체 주차 목록:', weeks);
@@ -936,51 +990,51 @@
                 if (targetCard) {
                     console.log('오늘 날짜 카드 발견');
                 } else {
-                    console.log('오늘 날짜 카드 없음, 가장 가까운 과거 날짜 찾기');
+                    console.log('오늘 날짜 카드 없음, 가장 가까운 미래 날짜 찾기');
                     
-                    // 2. 가장 가까운 과거 날짜 찾기 (어제, 그제...)
-                    let closestPastCard = null;
+                    // 2. 가장 가까운 미래 날짜 찾기 (내일, 모레...)
+                    let closestFutureCard = null;
                     let minDiff = Infinity;
                     
                     allCards.forEach(card => {
                         const cardDateStr = card.getAttribute('data-date');
                         const cardDate = new Date(cardDateStr + 'T00:00:00');
-                        const diff = today - cardDate; // 과거는 양수
+                        const diff = cardDate - today; // 미래는 양수
                         
-                        // 오늘 이전의 날짜 중 가장 가까운 것
+                        // 오늘 이후의 날짜 중 가장 가까운 것
                         if (diff > 0 && diff < minDiff) {
                             minDiff = diff;
-                            closestPastCard = card;
+                            closestFutureCard = card;
                         }
                     });
                     
-                    if (closestPastCard) {
-                        targetCard = closestPastCard;
-                        const pastDate = targetCard.getAttribute('data-date');
-                        console.log('가장 가까운 과거 날짜:', pastDate);
+                    if (closestFutureCard) {
+                        targetCard = closestFutureCard;
+                        const futureDate = targetCard.getAttribute('data-date');
+                        console.log('가장 가까운 미래 날짜:', futureDate);
                     } else {
-                        // 3. 과거 일정도 없으면 가장 가까운 미래 날짜
-                        console.log('과거 일정 없음, 가장 가까운 미래 날짜 찾기');
-                        let closestFutureCard = null;
+                        // 3. 미래 일정도 없으면 가장 가까운 과거 날짜
+                        console.log('미래 일정 없음, 가장 가까운 과거 날짜 찾기');
+                        let closestPastCard = null;
                         minDiff = Infinity;
                         
                         allCards.forEach(card => {
                             const cardDateStr = card.getAttribute('data-date');
                             const cardDate = new Date(cardDateStr + 'T00:00:00');
-                            const diff = cardDate - today;
+                            const diff = today - cardDate;
                             
-                            // 오늘 이후의 날짜 중 가장 가까운 것
-                            if (diff >= 0 && diff < minDiff) {
+                            // 오늘 이전의 날짜 중 가장 가까운 것
+                            if (diff > 0 && diff < minDiff) {
                                 minDiff = diff;
-                                closestFutureCard = card;
+                                closestPastCard = card;
                             }
                         });
                         
-                        targetCard = closestFutureCard || allCards[0];
+                        targetCard = closestPastCard || allCards[0];
                         
                         if (targetCard) {
-                            const futureDate = targetCard.getAttribute('data-date');
-                            console.log('가장 가까운 미래 날짜:', futureDate);
+                            const pastDate = targetCard.getAttribute('data-date');
+                            console.log('가장 가까운 과거 날짜:', pastDate);
                         }
                     }
                 }
