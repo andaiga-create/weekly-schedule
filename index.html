@@ -98,6 +98,85 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        /* 항상 화면에 떠 있는 전주/차주 네비게이션 */
+        .floating-week-nav {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            padding: 10px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            z-index: 1000;
+        }
+
+        .float-nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            width: 64px;
+            padding: 12px 8px;
+            border: none;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .float-nav-btn .arrow {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .float-nav-btn:hover {
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .float-nav-btn:active {
+            transform: translateY(0);
+        }
+
+        .float-week-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #495057;
+            padding: 4px 0;
+            width: 64px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        @media (max-width: 768px) {
+            .floating-week-nav {
+                right: 16px;
+                bottom: 16px;
+                padding: 8px;
+            }
+
+            .float-nav-btn {
+                width: 54px;
+                padding: 10px 6px;
+                font-size: 11px;
+            }
+
+            .float-week-label {
+                width: 54px;
+                font-size: 12px;
+            }
+        }
+
         .stats {
             background: white;
             padding: 20px 40px;
@@ -417,6 +496,16 @@
         </div>
     </div>
 
+    <div class="floating-week-nav" id="floatingWeekNav">
+        <button type="button" class="float-nav-btn" id="prevWeekBtn" title="이전 주차로 이동">
+            <span class="arrow">▲</span><span>전주</span>
+        </button>
+        <span class="float-week-label" id="floatingWeekLabel">-</span>
+        <button type="button" class="float-nav-btn" id="nextWeekBtn" title="다음 주차로 이동">
+            <span class="arrow">▼</span><span>차주</span>
+        </button>
+    </div>
+
     <script>
         // 전역 변수
         let allSchedules = [];
@@ -647,16 +736,38 @@
         }
 
         // 현재 주차 계산 - 오늘 날짜가 속한 주차 반환
+
+        // 17시 이후에는 '오늘' 기준을 익일로 당겨서 계산
+        // (퇴근 시간 이후에는 당일 스케줄보다 다음 일정이 더 의미있게 보이도록)
+        function getEffectiveToday() {
+            const now = new Date();
+            const effective = new Date(now);
+            effective.setHours(0, 0, 0, 0);
+
+            if (now.getHours() >= 17) {
+                effective.setDate(effective.getDate() + 1);
+            }
+
+            return effective;
+        }
+
+        // 로컬 시간대 기준 YYYY-MM-DD 문자열 생성 (toISOString의 UTC 오차 방지)
+        function toLocalDateStr(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function getCurrentWeek() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const today = getEffectiveToday();
             
-            const todayStr = today.toISOString().split('T')[0];
+            const todayStr = toLocalDateStr(today);
             const currentWeek = getWeekFromDate(todayStr);
             
             console.log('=== 현재 주차 계산 ===');
-            console.log('오늘 날짜:', todayStr);
-            console.log('오늘의 주차:', currentWeek);
+            console.log('기준 날짜(17시 이후 익일 보정):', todayStr);
+            console.log('기준일의 주차:', currentWeek);
             
             // 데이터에 현재 주차가 있는지 확인
             const hasCurrentWeek = allSchedules.some(s => s.주 === currentWeek);
@@ -915,6 +1026,12 @@
             document.getElementById('totalCount').textContent = allSchedules.length;
             document.getElementById('weekCount').textContent = thisWeekSchedules.length;
 
+            // 플로팅 전주/차주 위젯 라벨 갱신
+            const floatLabel = document.getElementById('floatingWeekLabel');
+            if (floatLabel) {
+                floatLabel.textContent = weekFilter || currentWeek || '-';
+            }
+
             // 주차 헤더 업데이트
             if (weekFilter) {
                 const weekSchedules = filteredSchedules.filter(s => s.주 === weekFilter);
@@ -964,8 +1081,7 @@
         function scrollToToday() {
             // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 스크롤
             setTimeout(() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const today = getEffectiveToday();
                 
                 // 로컬 시간대를 사용한 날짜 문자열 생성 (YYYY-MM-DD)
                 const year = today.getFullYear();
@@ -974,7 +1090,7 @@
                 const todayStr = `${year}-${month}-${day}`;
                 
                 console.log('=== 자동 스크롤 시작 ===');
-                console.log('오늘 날짜:', todayStr);
+                console.log('기준 날짜(17시 이후 익일 보정):', todayStr);
                 
                 // 모든 카드 가져오기
                 const allCards = document.querySelectorAll('.schedule-card[data-date]');
@@ -1143,6 +1259,35 @@
                 </div>
             `;
         }
+
+        // 전주(◀) / 차주(▶) 이동
+        // 주차 선택이 비어있으면(전체 주차) 현재 기준 주차에서 출발
+        function shiftWeek(direction) {
+            const weeks = extractWeeks(allSchedules);
+            if (weeks.length === 0) return;
+
+            const weekEl = document.getElementById('weekFilter');
+            const currentVal = weekEl.value;
+
+            let idx = currentVal ? weeks.indexOf(currentVal) : -1;
+
+            if (idx === -1) {
+                // 전체 주차 상태 → 현재(기준) 주차를 출발점으로 사용
+                const baseWeek = getCurrentWeek();
+                const baseIdx = weeks.indexOf(baseWeek);
+                idx = baseIdx === -1 ? (direction > 0 ? -1 : weeks.length) : baseIdx;
+            }
+
+            let newIdx = idx + direction;
+            newIdx = Math.max(0, Math.min(weeks.length - 1, newIdx));
+
+            weekEl.value = weeks[newIdx];
+            updateLinkedFilters();
+            applyFilters();
+        }
+
+        document.getElementById('prevWeekBtn').addEventListener('click', () => shiftWeek(-1));
+        document.getElementById('nextWeekBtn').addEventListener('click', () => shiftWeek(1));
 
         // 초기화 - 페이지 로딩 시 자동으로 GitHub에서 파일 로드
         window.addEventListener('DOMContentLoaded', function() {
