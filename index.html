@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>AS & CLAIM 주간 스케줄 (2026)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -103,6 +103,8 @@
             position: fixed;
             right: 30px;
             bottom: 30px;
+            /* iOS Safari 하단 툴바에 가려지지 않도록 safe-area 보정 */
+            bottom: calc(30px + env(safe-area-inset-bottom, 0px));
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -111,7 +113,9 @@
             padding: 10px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-            z-index: 1000;
+            z-index: 2147483647;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
 
         .float-nav-btn {
@@ -158,10 +162,45 @@
             border-bottom: 1px solid #e9ecef;
         }
 
+        /* 전주/차주 경계 도달 시 표시되는 알림 토스트 */
+        .week-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(33, 37, 41, 0.92);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            z-index: 2147483647;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .week-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
         @media (max-width: 768px) {
+            .week-toast {
+                bottom: 90px;
+                font-size: 13px;
+                padding: 10px 16px;
+                max-width: 80vw;
+                white-space: normal;
+                text-align: center;
+            }
+
             .floating-week-nav {
                 right: 16px;
                 bottom: 16px;
+                bottom: calc(16px + env(safe-area-inset-bottom, 0px));
                 padding: 8px;
             }
 
@@ -505,6 +544,8 @@
             <span class="arrow">▼</span><span>차주</span>
         </button>
     </div>
+
+    <div class="week-toast" id="weekToast"></div>
 
     <script>
         // 전역 변수
@@ -1262,11 +1303,47 @@
 
         // 전주(◀) / 차주(▶) 이동
         // 주차 선택이 비어있으면(전체 주차) 현재 기준 주차에서 출발
-        function shiftWeek(direction) {
-            const weeks = extractWeeks(allSchedules);
-            if (weeks.length === 0) return;
+        // 화면 하단에 짧게 알림 문구를 띄우는 토스트
+        let toastTimer = null;
+        function showToast(message) {
+            const toastEl = document.getElementById('weekToast');
+            if (!toastEl) return;
 
-            const weekEl = document.getElementById('weekFilter');
+            toastEl.textContent = message;
+            toastEl.classList.add('show');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toastEl.classList.remove('show');
+            }, 2200);
+        }
+
+        function shiftWeek(direction) {
+            const weekEl    = document.getElementById('weekFilter');
+            const managerEl = document.getElementById('managerFilter');
+            const vendorEl  = document.getElementById('vendorFilter');
+
+            const selManager = managerEl.value;
+            const selVendor  = vendorEl.value;
+
+            // 현재 선택된 담당자/외주 필터를 반영한 데이터에서만 주차를 추출
+            // (전체 데이터 기준으로 주차를 뽑으면, 해당 담당자/외주 일정이 없는 주차로
+            //  이동하게 되고, 이후 updateLinkedFilters()에서 "선택값이 옵션에 없음"으로
+            //  판단되어 담당자/외주/주차 필터가 모두 초기화되는 버그가 발생함)
+            const filteredForWeeks = allSchedules.filter(s => {
+                const mOk = !selManager || (s.담당자 && typeof s.담당자 === 'string' &&
+                    s.담당자.split(',').map(m => m.trim()).includes(selManager));
+                const vOk = !selVendor  || (s.외주 && typeof s.외주 === 'string' &&
+                    s.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '').includes(selVendor));
+                return mOk && vOk;
+            });
+
+            const weeks = extractWeeks(filteredForWeeks);
+            if (weeks.length === 0) {
+                showToast('선택한 조건에 해당하는 일정이 없습니다.');
+                return;
+            }
+
             const currentVal = weekEl.value;
 
             let idx = currentVal ? weeks.indexOf(currentVal) : -1;
@@ -1278,8 +1355,18 @@
                 idx = baseIdx === -1 ? (direction > 0 ? -1 : weeks.length) : baseIdx;
             }
 
-            let newIdx = idx + direction;
-            newIdx = Math.max(0, Math.min(weeks.length - 1, newIdx));
+            const rawNewIdx = idx + direction;
+            const newIdx = Math.max(0, Math.min(weeks.length - 1, rawNewIdx));
+
+            // 필터(담당자/외주) 적용 기준으로 더 이상 이동할 주차가 없는 경우 안내
+            if (rawNewIdx !== newIdx) {
+                const filterLabel = [selManager, selVendor].filter(Boolean).join(' / ');
+                const suffix = filterLabel ? ` (${filterLabel} 기준)` : '';
+                const message = direction > 0
+                    ? `다음 일정이 없습니다.${suffix}`
+                    : `이전 일정이 없습니다.${suffix}`;
+                showToast(message);
+            }
 
             weekEl.value = weeks[newIdx];
             updateLinkedFilters();
