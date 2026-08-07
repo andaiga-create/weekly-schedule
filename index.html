@@ -373,6 +373,16 @@
             color: #7b1fa2;
         }
 
+        .badge.naeso {
+            background: #fff8e1;
+            color: #f9a825;
+        }
+
+        .badge.default {
+            background: #eceff1;
+            color: #455a64;
+        }
+
         .badge.free {
             background: #e8f5e9;
             color: #388e3c;
@@ -1213,9 +1223,17 @@
 
         // 스케줄 카드 생성
         function createScheduleCard(schedule, date) {
-            const 구분Badge = schedule.구분 === 'A/S' ? 
-                '<span class="badge as">A/S</span>' : 
-                '<span class="badge claim">CLAIM</span>';
+            const 구분Value = schedule.구분 ? String(schedule.구분).trim() : '';
+            let 구분Badge = '';
+            if (구분Value === 'A/S') {
+                구분Badge = '<span class="badge as">A/S</span>';
+            } else if (구분Value === 'CLAIM' || 구분Value === '클레임') {
+                구분Badge = '<span class="badge claim">CLAIM</span>';
+            } else if (구분Value === '사내') {
+                구분Badge = '<span class="badge naeso">사내</span>';
+            } else if (구분Value && 구분Value !== 'nan') {
+                구분Badge = `<span class="badge default">${구분Value}</span>`;
+            }
             
             // 유무상 정보 처리 (다양한 형식 지원)
             let 유무상Badge = '';
