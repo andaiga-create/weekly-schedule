@@ -98,6 +98,42 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        /* 카드보기 / 전체보기 토글 버튼 */
+        .view-toggle {
+            display: flex;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 42px;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 0 18px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            text-align: center;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .view-btn + .view-btn {
+            border-left: 2px solid #dee2e6;
+        }
+
+        .view-btn:hover {
+            background: #f1f3f5;
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         /* 항상 화면에 떠 있는 전주/차주 네비게이션 */
         .floating-week-nav {
             position: fixed;
@@ -450,6 +486,324 @@
             font-weight: 500;
         }
 
+        /* ===== 주간 전체보기 (가로 보드) ===== */
+        .overview-board {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+
+        .overview-day {
+            flex: 1 1 0;
+            min-width: 150px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .overview-day.today {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .overview-day-header {
+            padding: 10px 8px;
+            text-align: center;
+            background: white;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .overview-day.today .overview-day-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .overview-day-date {
+            font-size: 15px;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .overview-day.today .overview-day-date {
+            color: white;
+        }
+
+        .overview-day-weekday {
+            font-size: 12px;
+            color: #868e96;
+            margin-left: 4px;
+        }
+
+        .overview-day.today .overview-day-weekday {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .overview-day.weekend .overview-day-date,
+        .overview-day.weekend .overview-day-weekday {
+            color: #e03131;
+        }
+
+        .overview-day.today.weekend .overview-day-date,
+        .overview-day.today.weekend .overview-day-weekday {
+            color: white;
+        }
+
+        .overview-day-count {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .overview-day.today .overview-day-count {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .overview-day-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            /* 하루 일정이 많아도 보드 전체 높이는 일정하게 유지하고,
+               해당 요일 칸 안에서만 스크롤되게 하여 화면 전체 스크롤을 최소화 */
+            max-height: 560px;
+            overflow-y: auto;
+        }
+
+        .overview-empty {
+            text-align: center;
+            color: #adb5bd;
+            font-size: 12px;
+            padding: 24px 4px;
+        }
+
+        .overview-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .overview-item.claim {
+            border-left-color: #7b1fa2;
+        }
+
+        .overview-item.naeso {
+            border-left-color: #f9a825;
+        }
+
+        .overview-item-top {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .overview-item .badge {
+            padding: 3px 7px;
+            font-size: 10px;
+        }
+
+        .overview-item-place {
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 2px;
+        }
+
+        .overview-item-sub {
+            color: #6c757d;
+            margin-bottom: 6px;
+        }
+
+        /* 외주 정보를 한눈에 들어오도록 강조 배지 처리 */
+        .overview-vendor {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff8e1;
+            color: #e65100;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            margin-bottom: 4px;
+            max-width: 100%;
+        }
+
+        .overview-item-manager {
+            color: #495057;
+            font-size: 11px;
+        }
+
+        @media (max-width: 768px) {
+            .overview-board {
+                gap: 8px;
+            }
+
+            .overview-day {
+                min-width: 130px;
+            }
+
+            .overview-day-body {
+                max-height: 420px;
+            }
+        }
+
+        /* ===== 주간 전체보기 상단 미니바 (기본은 숨김) ===== */
+        .overview-topbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: white;
+            padding: 10px 16px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .ob-exit-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: #eceff1;
+            color: #37474f;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s ease;
+        }
+
+        .ob-exit-btn:hover {
+            background: #dfe3e6;
+        }
+
+        .ob-week-label {
+            font-weight: 700;
+            font-size: 14px;
+            color: #212529;
+            text-align: center;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ob-nav {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .ob-nav-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+
+        .ob-nav-btn:hover {
+            opacity: 0.85;
+        }
+
+        /* 주간 전체보기 활성화 시: 헤더/필터/통계/주차타이틀 등 메뉴 전부 숨기고
+           일정 보드가 화면을 꽉 채우도록 전환 */
+        body.overview-fullscreen {
+            padding: 0;
+        }
+
+        body.overview-fullscreen .container {
+            max-width: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.overview-fullscreen .header,
+        body.overview-fullscreen .filters,
+        body.overview-fullscreen .stats,
+        body.overview-fullscreen .week-header {
+            display: none !important;
+        }
+
+        body.overview-fullscreen .overview-topbar {
+            display: flex;
+        }
+
+        body.overview-fullscreen .content {
+            padding: 8px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        body.overview-fullscreen #scheduleGrid {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        body.overview-fullscreen .overview-board {
+            flex: 1;
+            min-height: 0;
+            height: auto;
+        }
+
+        body.overview-fullscreen .overview-day {
+            height: 100%;
+        }
+
+        body.overview-fullscreen .overview-day-body {
+            flex: 1;
+            min-height: 0;
+            max-height: none;
+        }
+
+        /* 전체보기에서는 상단바에 이미 전주/차주 버튼이 있으므로
+           화면을 가리는 플로팅 버튼은 숨김 */
+        body.overview-fullscreen .floating-week-nav {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .overview-topbar {
+                padding: 8px 10px;
+            }
+
+            .ob-exit-btn {
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+
+            .ob-week-label {
+                font-size: 12px;
+            }
+
+            .ob-nav-btn {
+                padding: 7px 9px;
+                font-size: 11px;
+            }
+        }
+
         @media (max-width: 768px) {
             .filters {
                 flex-direction: column;
@@ -460,9 +814,23 @@
                 min-width: 100%;
             }
 
+            .view-toggle {
+                width: 100%;
+            }
+
             .stats {
-                flex-direction: column;
-                gap: 15px;
+                gap: 20px;
+                padding: 16px 18px;
+            }
+
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .stat-value {
+                font-size: 20px;
             }
 
             .info-row {
@@ -471,7 +839,13 @@
             }
 
             .header h1 {
-                font-size: 24px;
+                font-size: clamp(18px, 5.6vw, 22px);
+                white-space: nowrap;
+                letter-spacing: -0.4px;
+            }
+
+            .header {
+                padding: 14px 16px;
             }
         }
 
@@ -512,6 +886,13 @@
                     <option value="">전체 외주</option>
                 </select>
             </div>
+            <div class="filter-group">
+                <label>📋 보기 방식</label>
+                <div class="view-toggle">
+                    <button type="button" class="view-btn active" id="cardViewBtn" data-view="card">카드보기</button>
+                    <button type="button" class="view-btn" id="overviewViewBtn" data-view="overview">주간 전체보기</button>
+                </div>
+            </div>
         </div>
 
         <div class="stats">
@@ -528,6 +909,17 @@
                     <span class="stat-label">금주 일정</span>
                     <span class="stat-value" id="weekCount">0</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- 주간 전체보기 모드 전용 상단바: 다른 메뉴가 모두 숨겨진 상태에서
+             화면으로 돌아가기 / 주차 이동을 담당하는 최소한의 컨트롤 -->
+        <div class="overview-topbar" id="overviewTopbar">
+            <button type="button" class="ob-exit-btn" id="obExitBtn">✕ 카드보기</button>
+            <div class="ob-week-label" id="obWeekLabel">-</div>
+            <div class="ob-nav">
+                <button type="button" class="ob-nav-btn" id="obPrevBtn">◀ 전주</button>
+                <button type="button" class="ob-nav-btn" id="obNextBtn">차주 ▶</button>
             </div>
         </div>
 
@@ -561,6 +953,7 @@
         // 전역 변수
         let allSchedules = [];
         let filteredSchedules = [];
+        let viewMode = 'card'; // 'card' = 카드보기, 'overview' = 주간 전체보기(가로)
 
         // GitHub에서 Excel 파일 자동 로드
         async function loadExcelFromGitHub() {
@@ -976,6 +1369,9 @@
             [weekEl, managerEl, vendorEl].forEach(el => {
                 el.addEventListener('change', () => {
                     updateLinkedFilters();
+                    if (viewMode === 'overview') {
+                        ensureWeekSelectedForOverview();
+                    }
                     applyFilters();
                 });
             });
@@ -1099,6 +1495,14 @@
                 document.getElementById('weekRange').textContent = '';
             }
 
+            // 주간 전체보기 상단바 라벨 갱신 (예: "35주 · 08.24 (월) ~ 08.28 (금)")
+            const obLabel = document.getElementById('obWeekLabel');
+            if (obLabel) {
+                const wTitle = document.getElementById('weekTitle').textContent;
+                const wRange = document.getElementById('weekRange').textContent;
+                obLabel.textContent = wRange ? `${wTitle} · ${wRange}` : wTitle;
+            }
+
             if (filteredSchedules.length === 0) {
                 grid.innerHTML = `
                     <div class="no-data">
@@ -1106,6 +1510,12 @@
                         <div class="no-data-text">조건에 맞는 일정이 없습니다</div>
                     </div>
                 `;
+                return;
+            }
+
+            // 주간 전체보기 모드: 가로형 요일 보드로 렌더링
+            if (viewMode === 'overview') {
+                grid.innerHTML = renderOverviewBoard(weekFilter);
                 return;
             }
 
@@ -1126,6 +1536,162 @@
 
             // 렌더링 완료 후 오늘 날짜로 스크롤
             scrollToToday();
+        }
+
+        // 주차 선택 없이 주간 전체보기로 전환된 경우, 현재 주차(또는 첫 주차)를 자동 선택
+        function ensureWeekSelectedForOverview() {
+            const weekEl = document.getElementById('weekFilter');
+            if (weekEl.value) return;
+
+            const managerEl = document.getElementById('managerFilter');
+            const vendorEl  = document.getElementById('vendorFilter');
+            const selManager = managerEl.value;
+            const selVendor  = vendorEl.value;
+
+            const filteredForWeeks = allSchedules.filter(s => {
+                const mOk = !selManager || (s.담당자 && typeof s.담당자 === 'string' &&
+                    s.담당자.split(',').map(m => m.trim()).includes(selManager));
+                const vOk = !selVendor  || (s.외주 && typeof s.외주 === 'string' &&
+                    s.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '').includes(selVendor));
+                return mOk && vOk;
+            });
+
+            const weeks = extractWeeks(filteredForWeeks);
+            if (weeks.length === 0) return;
+
+            const currentWeek = getCurrentWeek();
+            weekEl.value = weeks.includes(currentWeek) ? currentWeek : weeks[0];
+            updateLinkedFilters();
+        }
+
+        // 주간 전체보기: 월~일 7일 가로 보드 생성
+        function renderOverviewBoard(weekFilter) {
+            if (!weekFilter) {
+                return `
+                    <div class="no-data">
+                        <div class="no-data-icon">📅</div>
+                        <div class="no-data-text">전체보기는 특정 주차를 선택했을 때 표시됩니다</div>
+                    </div>
+                `;
+            }
+
+            // 요일 배치는 담당자/외주 필터와 무관하게 그 주에 실제 존재하는 날짜 전체를 기준으로 계산
+            // (필터링으로 일부 요일의 일정이 사라져도 요일 칸 자체는 유지되도록)
+            const weekAllDates = allSchedules
+                .filter(s => s.주 === weekFilter && s.일자)
+                .map(s => s.일자)
+                .sort();
+
+            if (weekAllDates.length === 0) {
+                return `
+                    <div class="no-data">
+                        <div class="no-data-icon">📋</div>
+                        <div class="no-data-text">해당 주차에 일정이 없습니다</div>
+                    </div>
+                `;
+            }
+
+            // 해당 주의 월요일 계산 후 7일(월~일) 생성
+            const firstDate = new Date(weekAllDates[0] + 'T00:00:00');
+            const dow = firstDate.getDay(); // 0=일 ... 6=토
+            const mondayOffset = (dow + 6) % 7;
+            const monday = new Date(firstDate);
+            monday.setDate(monday.getDate() - mondayOffset);
+
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(monday);
+                d.setDate(d.getDate() + i);
+                days.push(toLocalDateStr(d));
+            }
+
+            // 필터(담당자/외주)까지 반영된 스케줄을 날짜별로 그룹화
+            const grouped = {};
+            filteredSchedules.forEach(schedule => {
+                if (!grouped[schedule.일자]) grouped[schedule.일자] = [];
+                grouped[schedule.일자].push(schedule);
+            });
+
+            const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const todayStr = toLocalDateStr(getEffectiveToday());
+
+            // 요일별 데이터 구성 (토/일요일은 일정이 없으면 화면에서 제외하여
+            // 가시성을 높이고, 평일 칸이 더 넓게 화면을 채우도록 함)
+            const dayInfos = days.map(dateStr => {
+                const d = new Date(dateStr + 'T00:00:00');
+                const weekdayIdx = d.getDay();
+                const isWeekend = weekdayIdx === 0 || weekdayIdx === 6;
+                const items = grouped[dateStr] || [];
+                return { dateStr, d, weekdayIdx, isWeekend, items };
+            }).filter(day => !(day.isWeekend && day.items.length === 0));
+
+            const daysHtml = dayInfos.map(({ dateStr, d, weekdayIdx, isWeekend, items }) => {
+                const isToday = dateStr === todayStr;
+
+                return `
+                    <div class="overview-day ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''}">
+                        <div class="overview-day-header">
+                            <div>
+                                <span class="overview-day-date">${d.getMonth() + 1}/${d.getDate()}</span>
+                                <span class="overview-day-weekday">(${weekdayNames[weekdayIdx]})</span>
+                            </div>
+                            ${items.length > 0 ? `<div class="overview-day-count">${items.length}건</div>` : ''}
+                        </div>
+                        <div class="overview-day-body">
+                            ${items.length === 0
+                                ? '<div class="overview-empty">일정 없음</div>'
+                                : items.map(item => createOverviewItem(item)).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `<div class="overview-board">${daysHtml}</div>`;
+        }
+
+        // 주간 전체보기용 압축 카드 (외주 정보 강조)
+        function createOverviewItem(schedule) {
+            const 구분Value = schedule.구분 ? String(schedule.구분).trim() : '';
+            let itemClass = '';
+            let 구분Badge = '';
+            if (구분Value === 'A/S') {
+                구분Badge = '<span class="badge as">A/S</span>';
+            } else if (구분Value === 'CLAIM' || 구분Value === '클레임') {
+                구분Badge = '<span class="badge claim">CLAIM</span>';
+                itemClass = 'claim';
+            } else if (구분Value === '사내') {
+                구분Badge = '<span class="badge naeso">사내</span>';
+                itemClass = 'naeso';
+            } else if (구분Value && 구분Value !== 'nan') {
+                구분Badge = `<span class="badge default">${구분Value}</span>`;
+            }
+
+            let 유무상Badge = '';
+            const 유무상Value = schedule.유무상;
+            if (유무상Value) {
+                const 유무상Str = String(유무상Value).trim();
+                if (유무상Str.includes('무상')) {
+                    유무상Badge = '<span class="badge free">무상</span>';
+                } else if (유무상Str.includes('유상')) {
+                    유무상Badge = '<span class="badge paid">유상</span>';
+                }
+            }
+
+            const 외주텍스트 = (schedule.외주 && schedule.외주 !== 'nan')
+                ? String(schedule.외주).replace(/\n/g, ' ').trim()
+                : '';
+
+            return `
+                <div class="overview-item ${itemClass}">
+                    <div class="overview-item-top">
+                        ${구분Badge}${유무상Badge}
+                    </div>
+                    ${schedule.조선소_장소 ? `<div class="overview-item-place">${schedule.조선소_장소}</div>` : ''}
+                    <div class="overview-item-sub">${[schedule.호선, schedule.장비].filter(Boolean).join(' · ')}</div>
+                    ${외주텍스트 ? `<div class="overview-vendor">🏭 ${외주텍스트}</div>` : ''}
+                    ${schedule.담당자 && schedule.담당자 !== 'nan' ? `<div class="overview-item-manager">👤 ${schedule.담당자}</div>` : ''}
+                </div>
+            `;
         }
 
         // 오늘 날짜 카드로 자동 스크롤
@@ -1393,6 +1959,47 @@
 
         document.getElementById('prevWeekBtn').addEventListener('click', () => shiftWeek(-1));
         document.getElementById('nextWeekBtn').addEventListener('click', () => shiftWeek(1));
+
+        // 주간 전체보기 진입/이탈 시 body에 클래스를 토글하여
+        // 헤더/필터/통계 등 나머지 메뉴를 숨기고 일정 보드가 화면을 꽉 채우게 함
+        function setOverviewFullscreen(active) {
+            document.body.classList.toggle('overview-fullscreen', active);
+        }
+
+        function setActiveViewButton(mode) {
+            document.querySelectorAll('.view-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.view === mode);
+            });
+        }
+
+        // 카드보기 / 주간 전체보기 전환
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.classList.contains('active')) return;
+
+                viewMode = btn.dataset.view;
+                setActiveViewButton(viewMode);
+                setOverviewFullscreen(viewMode === 'overview');
+
+                if (viewMode === 'overview') {
+                    ensureWeekSelectedForOverview();
+                }
+
+                applyFilters();
+            });
+        });
+
+        // 전체보기 상단바: 카드보기로 복귀
+        document.getElementById('obExitBtn').addEventListener('click', () => {
+            viewMode = 'card';
+            setActiveViewButton('card');
+            setOverviewFullscreen(false);
+            applyFilters();
+        });
+
+        // 전체보기 상단바: 전주/차주 이동 (기존 shiftWeek 재사용)
+        document.getElementById('obPrevBtn').addEventListener('click', () => shiftWeek(-1));
+        document.getElementById('obNextBtn').addEventListener('click', () => shiftWeek(1));
 
         // 초기화 - 페이지 로딩 시 자동으로 GitHub에서 파일 로드
         window.addEventListener('DOMContentLoaded', function() {
