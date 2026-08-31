@@ -198,6 +198,53 @@
             border-bottom: 1px solid #e9ecef;
         }
 
+        /* 전체보기 → 카드보기(특정 스케줄) 이동 후, 원래 보던 전체보기로 되돌아가는 버튼 */
+        .return-to-overview-btn {
+            position: fixed;
+            left: 30px;
+            bottom: 30px;
+            bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            white-space: nowrap;
+            z-index: 2147483647;
+            transition: all 0.2s ease;
+        }
+
+        .return-to-overview-btn.show {
+            display: flex;
+        }
+
+        .return-to-overview-btn:hover {
+            box-shadow: 0 4px 14px rgba(30, 60, 114, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .return-to-overview-btn .arrow {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+            .return-to-overview-btn {
+                left: 16px;
+                bottom: 16px;
+                bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+                padding: 12px 16px;
+                font-size: 13px;
+            }
+        }
+
         /* 전주/차주 경계 도달 시 표시되는 알림 토스트 */
         .week-toast {
             position: fixed;
@@ -355,6 +402,18 @@
             border-color: #667eea;
             box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
             transform: translateY(-2px);
+        }
+
+        /* 전체보기에서 선택한 스케줄이 카드보기로 넘어왔을 때 강조 표시 */
+        .schedule-card.highlighted {
+            border-color: #ffd700;
+            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.35), 0 8px 24px rgba(102, 126, 234, 0.25);
+            animation: highlightPulse 1.4s ease-in-out 2;
+        }
+
+        @keyframes highlightPulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.35), 0 8px 24px rgba(102, 126, 234, 0.25); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 215, 0, 0.15), 0 8px 24px rgba(102, 126, 234, 0.25); }
         }
 
         .card-header {
@@ -589,6 +648,18 @@
             padding: 10px;
             font-size: 12px;
             line-height: 1.5;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .overview-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .overview-item:active {
+            transform: translateY(0);
         }
 
         .overview-item.claim {
@@ -947,6 +1018,13 @@
         </button>
     </div>
 
+    <!-- 전체보기에서 특정 스케줄을 선택해 카드보기로 넘어온 경우에만 표시되는
+         "전체보기로 복귀" 버튼. 일반적인 보기 전환(view-toggle)과는 별개로,
+         선택했던 그 주차의 전체보기로 곧장 돌아갈 수 있게 함 -->
+    <button type="button" class="return-to-overview-btn" id="returnToOverviewBtn" title="전체보기로 돌아가기">
+        <span class="arrow">◀</span><span>전체보기로 돌아가기</span>
+    </button>
+
     <div class="week-toast" id="weekToast"></div>
 
     <script>
@@ -954,6 +1032,8 @@
         let allSchedules = [];
         let filteredSchedules = [];
         let viewMode = 'card'; // 'card' = 카드보기, 'overview' = 주간 전체보기(가로)
+        let pendingHighlightUid = null;   // 전체보기에서 선택해 카드보기로 넘어갈 때, 스크롤/강조할 스케줄 uid
+        let overviewReturnWeek = null;    // "전체보기로 돌아가기" 버튼을 눌렀을 때 복귀할 주차
 
         // GitHub에서 Excel 파일 자동 로드
         async function loadExcelFromGitHub() {
@@ -1100,6 +1180,7 @@
                 }
 
                 return {
+                    _uid: index, // 카드보기 ↔ 전체보기 연결을 위한 고유 식별자
                     주: dateStr ? getWeekFromDate(dateStr) : '', // 일자 기준으로 주차 자동 계산
                     일자: dateStr,
                     일자_str: dateStr,
@@ -1368,6 +1449,7 @@
             // 필터 이벤트 리스너: 변경 시 연동 갱신 → 렌더링
             [weekEl, managerEl, vendorEl].forEach(el => {
                 el.addEventListener('change', () => {
+                    hideReturnToOverviewButton();
                     updateLinkedFilters();
                     if (viewMode === 'overview') {
                         ensureWeekSelectedForOverview();
@@ -1534,8 +1616,15 @@
                 return schedules.map(schedule => createScheduleCard(schedule, date)).join('');
             }).join('');
 
-            // 렌더링 완료 후 오늘 날짜로 스크롤
-            scrollToToday();
+            // 전체보기에서 특정 스케줄을 선택해 넘어온 경우, 오늘 날짜 대신
+            // 해당 스케줄 카드로 스크롤 + 강조 표시
+            if (pendingHighlightUid !== null) {
+                scrollToAndHighlightSchedule(pendingHighlightUid);
+                pendingHighlightUid = null;
+            } else {
+                // 렌더링 완료 후 오늘 날짜로 스크롤
+                scrollToToday();
+            }
         }
 
         // 주차 선택 없이 주간 전체보기로 전환된 경우, 현재 주차(또는 첫 주차)를 자동 선택
@@ -1682,7 +1771,7 @@
                 : '';
 
             return `
-                <div class="overview-item ${itemClass}">
+                <div class="overview-item ${itemClass}" data-uid="${schedule._uid}" onclick="openScheduleFromOverview(${schedule._uid})">
                     <div class="overview-item-top">
                         ${구분Badge}${유무상Badge}
                     </div>
@@ -1787,6 +1876,65 @@
             }, 500);
         }
 
+        // 특정 uid의 스케줄 카드로 스크롤하며 강조 표시
+        // (전체보기에서 스케줄을 선택해 카드보기로 넘어왔을 때 사용)
+        function scrollToAndHighlightSchedule(uid) {
+            setTimeout(() => {
+                const targetCard = document.querySelector(`.schedule-card[data-uid="${uid}"]`);
+                if (!targetCard) return;
+
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetCard.classList.add('highlighted');
+
+                // 잠시 후 강조 효과 제거 (카드 자체 스타일은 유지)
+                setTimeout(() => {
+                    targetCard.classList.remove('highlighted');
+                }, 2800);
+            }, 400);
+        }
+
+        // 전체보기에서 특정 스케줄 카드를 클릭했을 때: 카드보기로 전환하며
+        // 해당 스케줄로 스크롤/강조. 되돌아갈 주차를 기억해 두었다가
+        // "전체보기로 돌아가기" 버튼으로 복귀할 수 있게 함
+        function openScheduleFromOverview(uid) {
+            overviewReturnWeek = document.getElementById('weekFilter').value;
+            pendingHighlightUid = uid;
+
+            viewMode = 'card';
+            setActiveViewButton('card');
+            setOverviewFullscreen(false);
+            applyFilters();
+
+            showReturnToOverviewButton();
+        }
+
+        // "전체보기로 돌아가기" 버튼 표시/숨김
+        function showReturnToOverviewButton() {
+            const btn = document.getElementById('returnToOverviewBtn');
+            if (btn) btn.classList.add('show');
+        }
+
+        function hideReturnToOverviewButton() {
+            const btn = document.getElementById('returnToOverviewBtn');
+            if (btn) btn.classList.remove('show');
+            overviewReturnWeek = null;
+        }
+
+        // 기억해 둔 주차의 전체보기로 복귀
+        function returnToOverview() {
+            if (overviewReturnWeek !== null) {
+                document.getElementById('weekFilter').value = overviewReturnWeek;
+                updateLinkedFilters();
+            }
+
+            viewMode = 'overview';
+            setActiveViewButton('overview');
+            setOverviewFullscreen(true);
+            applyFilters();
+
+            hideReturnToOverviewButton();
+        }
+
         // 스케줄 카드 생성
         function createScheduleCard(schedule, date) {
             const 구분Value = schedule.구분 ? String(schedule.구분).trim() : '';
@@ -1815,7 +1963,7 @@
             }
 
             return `
-                <div class="schedule-card" data-date="${date}">
+                <div class="schedule-card" data-date="${date}" data-uid="${schedule._uid}">
                     <div class="card-header">
                         <div class="card-date">
                             <div class="date-main">${formatDate(schedule.일자)}</div>
@@ -1957,8 +2105,8 @@
             applyFilters();
         }
 
-        document.getElementById('prevWeekBtn').addEventListener('click', () => shiftWeek(-1));
-        document.getElementById('nextWeekBtn').addEventListener('click', () => shiftWeek(1));
+        document.getElementById('prevWeekBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(-1); });
+        document.getElementById('nextWeekBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(1); });
 
         // 주간 전체보기 진입/이탈 시 body에 클래스를 토글하여
         // 헤더/필터/통계 등 나머지 메뉴를 숨기고 일정 보드가 화면을 꽉 채우게 함
@@ -1977,6 +2125,8 @@
             btn.addEventListener('click', () => {
                 if (btn.classList.contains('active')) return;
 
+                hideReturnToOverviewButton();
+
                 viewMode = btn.dataset.view;
                 setActiveViewButton(viewMode);
                 setOverviewFullscreen(viewMode === 'overview');
@@ -1991,6 +2141,7 @@
 
         // 전체보기 상단바: 카드보기로 복귀
         document.getElementById('obExitBtn').addEventListener('click', () => {
+            hideReturnToOverviewButton();
             viewMode = 'card';
             setActiveViewButton('card');
             setOverviewFullscreen(false);
@@ -1998,8 +2149,13 @@
         });
 
         // 전체보기 상단바: 전주/차주 이동 (기존 shiftWeek 재사용)
-        document.getElementById('obPrevBtn').addEventListener('click', () => shiftWeek(-1));
-        document.getElementById('obNextBtn').addEventListener('click', () => shiftWeek(1));
+        document.getElementById('obPrevBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(-1); });
+        document.getElementById('obNextBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(1); });
+
+        // 전체보기에서 스케줄 선택 → 카드보기로 이동 후 표시되는 "전체보기로 돌아가기" 버튼
+        document.getElementById('returnToOverviewBtn').addEventListener('click', () => {
+            returnToOverview();
+        });
 
         // 초기화 - 페이지 로딩 시 자동으로 GitHub에서 파일 로드
         window.addEventListener('DOMContentLoaded', function() {
