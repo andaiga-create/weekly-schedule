@@ -187,15 +187,24 @@
             transform: translateY(0);
         }
 
-        .float-week-label {
-            font-size: 13px;
+        .float-today-btn {
+            background: linear-gradient(135deg, #ffb300 0%, #ff8f00 100%);
+        }
+
+        .float-today-btn:hover {
+            box-shadow: 0 4px 14px rgba(255, 143, 0, 0.5);
+        }
+
+        /* 오늘 버튼 안에 표시되는 현재 선택 주차 텍스트 (기존 별도 라벨을 버튼에 통합) */
+        .float-today-week {
+            font-size: 10px;
             font-weight: 700;
-            color: #495057;
-            padding: 4px 0;
-            width: 64px;
+            color: rgba(255, 255, 255, 0.95);
+            margin-top: 1px;
+            padding-top: 3px;
+            width: 100%;
             text-align: center;
-            border-top: 1px solid #e9ecef;
-            border-bottom: 1px solid #e9ecef;
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
         }
 
         /* 전체보기 → 카드보기(특정 스케줄) 이동 후, 원래 보던 전체보기로 되돌아가는 버튼 */
@@ -293,9 +302,8 @@
                 font-size: 11px;
             }
 
-            .float-week-label {
-                width: 54px;
-                font-size: 12px;
+            .float-today-week {
+                font-size: 9px;
             }
         }
 
@@ -1012,17 +1020,20 @@
         <button type="button" class="float-nav-btn" id="prevWeekBtn" title="이전 주차로 이동">
             <span class="arrow">▲</span><span>전주</span>
         </button>
-        <span class="float-week-label" id="floatingWeekLabel">-</span>
+        <button type="button" class="float-nav-btn float-today-btn" id="goToTodayBtn" title="오늘 날짜로 이동">
+            <span>오늘</span>
+            <span class="float-today-week" id="floatingWeekLabel">-</span>
+        </button>
         <button type="button" class="float-nav-btn" id="nextWeekBtn" title="다음 주차로 이동">
             <span class="arrow">▼</span><span>차주</span>
         </button>
     </div>
 
-    <!-- 전체보기에서 특정 스케줄을 선택해 카드보기로 넘어온 경우에만 표시되는
-         "전체보기로 복귀" 버튼. 일반적인 보기 전환(view-toggle)과는 별개로,
-         선택했던 그 주차의 전체보기로 곧장 돌아갈 수 있게 함 -->
-    <button type="button" class="return-to-overview-btn" id="returnToOverviewBtn" title="전체보기로 돌아가기">
-        <span class="arrow">◀</span><span>전체보기로 돌아가기</span>
+    <!-- 카드보기에서 항상 표시되는 "전체보기" 바로가기 버튼.
+         주간 전체보기 모드에서는 body.overview-fullscreen에 의해
+         floating-week-nav와 함께 자동으로 숨겨지지 않으므로 JS에서 직접 표시/숨김 제어 -->
+    <button type="button" class="return-to-overview-btn" id="returnToOverviewBtn" title="전체보기">
+        <span class="arrow">◀</span><span>전체보기</span>
     </button>
 
     <div class="week-toast" id="weekToast"></div>
@@ -1449,7 +1460,7 @@
             // 필터 이벤트 리스너: 변경 시 연동 갱신 → 렌더링
             [weekEl, managerEl, vendorEl].forEach(el => {
                 el.addEventListener('change', () => {
-                    hideReturnToOverviewButton();
+                    clearOverviewReturnWeek();
                     updateLinkedFilters();
                     if (viewMode === 'overview') {
                         ensureWeekSelectedForOverview();
@@ -1561,6 +1572,9 @@
                 floatLabel.textContent = weekFilter || currentWeek || '-';
             }
 
+            // 카드보기 여부에 따라 "전체보기" 바로가기 버튼 표시 상태 동기화
+            updateFloatingOverviewBtn();
+
             // 주차 헤더 업데이트
             if (weekFilter) {
                 const weekSchedules = filteredSchedules.filter(s => s.주 === weekFilter);
@@ -1618,12 +1632,12 @@
 
             // 전체보기에서 특정 스케줄을 선택해 넘어온 경우, 오늘 날짜 대신
             // 해당 스케줄 카드로 스크롤 + 강조 표시
+            // 전체보기에서 특정 스케줄을 선택해 넘어온 경우에만 해당 카드로 스크롤/강조.
+            // (초기 진입 시 오늘 날짜로 자동 스크롤하던 기능은 제거 — 필터 섹션이 먼저 보이도록 함.
+            //  오늘 날짜로 이동은 우측 하단 "오늘" 버튼으로 언제든 수동 실행 가능)
             if (pendingHighlightUid !== null) {
                 scrollToAndHighlightSchedule(pendingHighlightUid);
                 pendingHighlightUid = null;
-            } else {
-                // 렌더링 완료 후 오늘 날짜로 스크롤
-                scrollToToday();
             }
         }
 
@@ -1895,7 +1909,7 @@
 
         // 전체보기에서 특정 스케줄 카드를 클릭했을 때: 카드보기로 전환하며
         // 해당 스케줄로 스크롤/강조. 되돌아갈 주차를 기억해 두었다가
-        // "전체보기로 돌아가기" 버튼으로 복귀할 수 있게 함
+        // "전체보기" 버튼으로 복귀할 수 있게 함
         function openScheduleFromOverview(uid) {
             overviewReturnWeek = document.getElementById('weekFilter').value;
             pendingHighlightUid = uid;
@@ -1905,22 +1919,22 @@
             setOverviewFullscreen(false);
             applyFilters();
 
-            showReturnToOverviewButton();
+            updateFloatingOverviewBtn();
         }
 
-        // "전체보기로 돌아가기" 버튼 표시/숨김
-        function showReturnToOverviewButton() {
+        // "전체보기" 바로가기 버튼: 카드보기일 때는 항상 표시, 주간 전체보기일 때는 숨김
+        function updateFloatingOverviewBtn() {
             const btn = document.getElementById('returnToOverviewBtn');
-            if (btn) btn.classList.add('show');
+            if (btn) btn.classList.toggle('show', viewMode === 'card');
         }
 
-        function hideReturnToOverviewButton() {
-            const btn = document.getElementById('returnToOverviewBtn');
-            if (btn) btn.classList.remove('show');
+        // 주차가 수동으로 바뀌면(필터 변경, 전/차주 이동 등) 기억해 둔 복귀 주차는
+        // 더 이상 유효하지 않으므로 초기화 — "전체보기" 클릭 시 현재 선택된 주차로 이동하게 됨
+        function clearOverviewReturnWeek() {
             overviewReturnWeek = null;
         }
 
-        // 기억해 둔 주차의 전체보기로 복귀
+        // 전체보기로 이동 (특정 스케줄에서 넘어온 경우 그 주차로, 아니면 현재 선택된 주차로)
         function returnToOverview() {
             if (overviewReturnWeek !== null) {
                 document.getElementById('weekFilter').value = overviewReturnWeek;
@@ -1932,7 +1946,8 @@
             setOverviewFullscreen(true);
             applyFilters();
 
-            hideReturnToOverviewButton();
+            clearOverviewReturnWeek();
+            updateFloatingOverviewBtn();
         }
 
         // 스케줄 카드 생성
@@ -2105,8 +2120,55 @@
             applyFilters();
         }
 
-        document.getElementById('prevWeekBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(-1); });
-        document.getElementById('nextWeekBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(1); });
+        // 담당자/외주 필터가 걸린 상태에서도 특정 주차에 일정이 존재하는지 확인
+        function weekAvailableWithCurrentFilters(week) {
+            const selManager = document.getElementById('managerFilter').value;
+            const selVendor  = document.getElementById('vendorFilter').value;
+            return allSchedules.some(s => {
+                if (s.주 !== week) return false;
+                const mOk = !selManager || (s.담당자 && typeof s.담당자 === 'string' &&
+                    s.담당자.split(',').map(m => m.trim()).includes(selManager));
+                const vOk = !selVendor  || (s.외주 && typeof s.외주 === 'string' &&
+                    s.외주.replace(/\([^)]*\)/g, '').replace(/\n/g, '').includes(selVendor));
+                return mOk && vOk;
+            });
+        }
+
+        // "오늘" 버튼: 오늘(또는 가장 가까운 일정)이 속한 주차로 필터를 자동 전환한 뒤
+        // 해당 날짜 카드로 스크롤/강조
+        function goToToday() {
+            const targetWeek = getCurrentWeek();
+            if (!targetWeek) { scrollToToday(); return; }
+
+            const weekEl    = document.getElementById('weekFilter');
+            const managerEl = document.getElementById('managerFilter');
+            const vendorEl  = document.getElementById('vendorFilter');
+
+            // 담당자/외주 필터에 가려 오늘 주차가 목록에 없으면 필터를 초기화해서 다시 노출
+            if (!weekAvailableWithCurrentFilters(targetWeek) && (managerEl.value || vendorEl.value)) {
+                managerEl.value = '';
+                vendorEl.value  = '';
+                updateLinkedFilters();
+                showToast('담당자/외주 필터를 초기화하고 오늘 주차로 이동했어요');
+            }
+
+            if (weekEl.value !== targetWeek) {
+                weekEl.value = targetWeek;
+                clearOverviewReturnWeek();
+                updateLinkedFilters();
+            }
+
+            applyFilters();
+            scrollToToday();
+        }
+
+        document.getElementById('prevWeekBtn').addEventListener('click', () => { clearOverviewReturnWeek(); shiftWeek(-1); });
+        document.getElementById('nextWeekBtn').addEventListener('click', () => { clearOverviewReturnWeek(); shiftWeek(1); });
+
+        // 카드보기에서 "오늘" 버튼: 오늘 주차로 이동 후 오늘 날짜 카드로 스크롤
+        document.getElementById('goToTodayBtn').addEventListener('click', () => {
+            goToToday();
+        });
 
         // 주간 전체보기 진입/이탈 시 body에 클래스를 토글하여
         // 헤더/필터/통계 등 나머지 메뉴를 숨기고 일정 보드가 화면을 꽉 채우게 함
@@ -2125,7 +2187,7 @@
             btn.addEventListener('click', () => {
                 if (btn.classList.contains('active')) return;
 
-                hideReturnToOverviewButton();
+                clearOverviewReturnWeek();
 
                 viewMode = btn.dataset.view;
                 setActiveViewButton(viewMode);
@@ -2136,23 +2198,25 @@
                 }
 
                 applyFilters();
+                updateFloatingOverviewBtn();
             });
         });
 
         // 전체보기 상단바: 카드보기로 복귀
         document.getElementById('obExitBtn').addEventListener('click', () => {
-            hideReturnToOverviewButton();
+            clearOverviewReturnWeek();
             viewMode = 'card';
             setActiveViewButton('card');
             setOverviewFullscreen(false);
             applyFilters();
+            updateFloatingOverviewBtn();
         });
 
         // 전체보기 상단바: 전주/차주 이동 (기존 shiftWeek 재사용)
-        document.getElementById('obPrevBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(-1); });
-        document.getElementById('obNextBtn').addEventListener('click', () => { hideReturnToOverviewButton(); shiftWeek(1); });
+        document.getElementById('obPrevBtn').addEventListener('click', () => { clearOverviewReturnWeek(); shiftWeek(-1); });
+        document.getElementById('obNextBtn').addEventListener('click', () => { clearOverviewReturnWeek(); shiftWeek(1); });
 
-        // 전체보기에서 스케줄 선택 → 카드보기로 이동 후 표시되는 "전체보기로 돌아가기" 버튼
+        // 카드보기에서 항상 표시되는 "전체보기" 버튼 → 주간 전체보기로 이동
         document.getElementById('returnToOverviewBtn').addEventListener('click', () => {
             returnToOverview();
         });
