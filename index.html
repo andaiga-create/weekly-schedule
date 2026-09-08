@@ -721,6 +721,12 @@
             font-size: 11px;
         }
 
+        .overview-item-vehicle {
+            color: #1e6f5c;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
         @media (max-width: 768px) {
             .overview-board {
                 gap: 8px;
@@ -1793,6 +1799,7 @@
                     <div class="overview-item-sub">${[schedule.호선, schedule.장비].filter(Boolean).join(' · ')}</div>
                     ${외주텍스트 ? `<div class="overview-vendor">🏭 ${외주텍스트}</div>` : ''}
                     ${schedule.담당자 && schedule.담당자 !== 'nan' ? `<div class="overview-item-manager">👤 ${schedule.담당자}</div>` : ''}
+                    ${schedule.차량 && schedule.차량 !== 'nan' ? `<div class="overview-item-vehicle">🚚 ${schedule.차량}</div>` : ''}
                 </div>
             `;
         }
