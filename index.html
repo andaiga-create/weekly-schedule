@@ -1703,7 +1703,9 @@
             // 해당 주의 월요일 계산 후 7일(월~일) 생성
             const firstDate = new Date(weekAllDates[0] + 'T00:00:00');
             const dow = firstDate.getDay(); // 0=일 ... 6=토
-            const mondayOffset = (dow + 6) % 7;
+            // 일요일(0)은 해당 주의 '첫째 날'이므로 다음날(+1)이 월요일,
+            // 월~토(1~6)는 (dow-1)일 전이 월요일
+            const mondayOffset = dow === 0 ? -1 : dow - 1;
             const monday = new Date(firstDate);
             monday.setDate(monday.getDate() - mondayOffset);
 
