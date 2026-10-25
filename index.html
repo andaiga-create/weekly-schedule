@@ -2454,7 +2454,7 @@
                 return '<div class="rp-row" data-rp-uid="' + u + '"><span class="rp-label">레포트</span><span class="rp-pill ' + st[0] + '">' + st[1] + '</span><span class="rp-acts">' +
                     (r && r.reg ? '<button type="button" class="rp-btn" data-rp-act="view" data-rp-uid="' + u + '">보기</button>' : '') +
                     (locked(r) ? '' : '<button type="button" class="rp-btn" data-rp-act="reg" data-rp-uid="' + u + '">등록</button>') +
-                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '열람' : '작성') + '</button></span></div>';
+                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '수정' : '작성') + '</button></span></div>';
             };
             function refreshRow(uid) {
                 var el = document.querySelector('.schedule-card[data-uid="' + uid + '"] .rp-row'), s = sch(uid);
