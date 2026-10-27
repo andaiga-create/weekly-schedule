@@ -134,6 +134,32 @@
             color: white;
         }
 
+        /* 새로고침 버튼 (플로팅 네비 맨 위) */
+        .float-refresh-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            width: 64px;
+            padding: 8px 6px;
+            margin-bottom: 2px;
+            border: 2px solid #667eea;
+            border-radius: 14px;
+            background: white;
+            color: #5a67d8;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .float-refresh-btn .refresh-icon { font-size: 18px; line-height: 1; display: inline-block; }
+        .float-refresh-btn:active { background: #eef0ff; }
+        .refresh-btn.spinning .refresh-icon { animation: refreshSpin 0.7s linear infinite; }
+        @keyframes refreshSpin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) { .float-refresh-btn { width: 54px; padding: 7px 4px; font-size: 10px; } }
+
         /* 항상 화면에 떠 있는 전주/차주 네비게이션 */
         .floating-week-nav {
             position: fixed;
@@ -1122,6 +1148,7 @@
             <button type="button" class="ob-exit-btn" id="obExitBtn">✕ 카드보기</button>
             <div class="ob-week-label" id="obWeekLabel">-</div>
             <div class="ob-nav">
+                <button type="button" class="ob-nav-btn refresh-btn" data-refresh title="새로고침"><span class="refresh-icon" style="display:inline-block">↻</span></button>
                 <button type="button" class="ob-nav-btn" id="obPrevBtn">◀ 전주</button>
                 <button type="button" class="ob-nav-btn" id="obNextBtn">차주 ▶</button>
             </div>
@@ -1142,6 +1169,9 @@
     </div>
 
     <div class="floating-week-nav" id="floatingWeekNav">
+        <button type="button" class="float-refresh-btn refresh-btn" data-refresh title="새로고침 (일정·레포트 최신화)">
+            <span class="refresh-icon">↻</span><span>새로고침</span>
+        </button>
         <button type="button" class="float-nav-btn" id="prevWeekBtn" title="이전 주차로 이동">
             <span class="arrow">▲</span><span>전주</span>
         </button>
@@ -2396,6 +2426,14 @@
         });
 
         // 초기화 - 페이지 로딩 시 자동으로 GitHub에서 파일 로드
+        // 새로고침 버튼: 일정 파일과 레포트 동기화를 모두 최신화하기 위해 페이지를 다시 불러온다
+        document.addEventListener('click', function(e) {
+            var b = e.target.closest && e.target.closest('[data-refresh]');
+            if (!b || b.classList.contains('spinning')) return;
+            b.classList.add('spinning');
+            setTimeout(function() { location.reload(); }, 400);
+        });
+
         window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('scheduleGrid').innerHTML = `
                 <div class="no-data">
@@ -2454,7 +2492,7 @@
                 return '<div class="rp-row" data-rp-uid="' + u + '"><span class="rp-label">레포트</span><span class="rp-pill ' + st[0] + '">' + st[1] + '</span><span class="rp-acts">' +
                     (r && r.reg ? '<button type="button" class="rp-btn" data-rp-act="view" data-rp-uid="' + u + '">보기</button>' : '') +
                     (locked(r) ? '' : '<button type="button" class="rp-btn" data-rp-act="reg" data-rp-uid="' + u + '">등록</button>') +
-                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '수정' : '작성') + '</button></span></div>';
+                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '열람' : '작성') + '</button></span></div>';
             };
             function refreshRow(uid) {
                 var el = document.querySelector('.schedule-card[data-uid="' + uid + '"] .rp-row'), s = sch(uid);
