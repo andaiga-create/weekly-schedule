@@ -156,6 +156,9 @@
         }
         .float-refresh-btn .refresh-icon { font-size: 18px; line-height: 1; display: inline-block; }
         .float-refresh-btn:active { background: #eef0ff; }
+        .nav-ic { width: 18px; height: 18px; display: block; }
+        .float-today-text { display: flex; gap: 0; white-space: nowrap; }
+        .float-today-text .float-today-week { border: 0; padding: 0; margin: 0; font-size: inherit; color: inherit; }
         .refresh-btn.spinning .refresh-icon { animation: refreshSpin 0.7s linear infinite; }
         @keyframes refreshSpin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) { .float-refresh-btn { width: 54px; padding: 7px 4px; font-size: 10px; } }
@@ -1113,13 +1116,54 @@
             .rp-row { margin: 14px -12px -14px; padding: 10px 10px 12px 14px; gap: 8px; }
             .rp-acts { order: 3; width: 100%; margin-left: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
             .rp-btn { white-space: nowrap; padding: 0 2px; min-height: 42px; font-size: 14px; letter-spacing: -0.3px; }
-            /* 하단 고정 가로 바: 본문(카드 버튼)을 가리지 않고 화면 폭을 최대로 활용 */
-            .content { padding-bottom: 96px; }
-            .floating-week-nav { left: auto; right: 0; bottom: 0; width: calc(100% - 96px); flex-direction: row; gap: 6px; padding: 7px 7px calc(7px + env(safe-area-inset-bottom, 0px)) 4px; border-radius: 0; box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18); }
-            .float-nav-btn, .float-refresh-btn { flex: 1 1 0; width: auto; min-width: 0; height: 48px; padding: 4px 2px; margin: 0; font-size: 11px; border-radius: 11px; }
-            .float-refresh-btn .refresh-icon { font-size: 16px; }
-            .return-to-overview-btn { left: 0; bottom: 0; width: 96px; height: calc(62px + env(safe-area-inset-bottom, 0px)); padding: 0 6px env(safe-area-inset-bottom, 0px); justify-content: center; border-radius: 0; font-size: 13px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18); }
-            .week-toast { bottom: 84px; }
+            /* ===== 하단 메뉴: iOS 글래스 캡슐형 (떠 있는 반투명 탭바) ===== */
+            .content { padding-bottom: 130px; }
+            .floating-week-nav {
+                --nb-b: max(14px, env(safe-area-inset-bottom, 0px));
+                left: 12px; right: 12px; bottom: var(--nb-b); width: auto; height: 64px;
+                flex-direction: row; align-items: center; gap: 2px;
+                padding: 6px 6px 6px 70px; border-radius: 32px;
+                background: rgba(250, 250, 252, 0.74);
+                -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%);
+                border: 1px solid rgba(255, 255, 255, 0.7);
+                box-shadow: 0 8px 28px rgba(20, 20, 60, 0.22), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+            }
+            .float-nav-btn, .float-refresh-btn {
+                flex: 1 1 0; width: auto; min-width: 0; height: 52px; margin: 0; padding: 0 2px;
+                border: 0; border-radius: 26px; gap: 2px; background: transparent; box-shadow: none;
+                color: #3a3a3c; font-size: 10px; font-weight: 600; letter-spacing: -0.2px;
+                -webkit-tap-highlight-color: transparent; transition: background 0.15s ease, transform 0.12s ease;
+            }
+            .float-nav-btn:hover { transform: none; box-shadow: none; }
+            .float-nav-btn:active, .float-refresh-btn:active, .return-to-overview-btn:active { background: rgba(60, 60, 67, 0.12); transform: scale(0.96); }
+            .float-nav-btn .arrow { font-size: 0; line-height: 0; display: block; }
+            .float-refresh-btn { color: #3a3a3c; order: 5; }
+            .float-today-text { gap: 3px; }
+            .float-refresh-btn .refresh-icon { font-size: 0; line-height: 0; display: block; }
+            .nav-ic { width: 24px; height: 24px; display: block; }
+            .float-today-btn, .float-today-btn:hover { flex: 1.5 1 0; background: linear-gradient(135deg, #6b75e6, #7a55b5); color: #fff; box-shadow: 0 4px 12px rgba(91, 99, 214, 0.45); }
+            .float-today-btn:active { background: linear-gradient(135deg, #5f69d9, #6c4aa5); }
+            .float-today-text { font-size: 10px; font-weight: 600; white-space: nowrap; }
+            .float-today-week { font-size: inherit; opacity: 1; border: 0; padding: 0; margin: 0; background: none; }
+            .return-to-overview-btn {
+                left: 18px; bottom: calc(var(--nb-b, max(14px, env(safe-area-inset-bottom, 0px))) + 6px);
+                width: 64px; height: 52px; padding: 0 2px; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
+                border-radius: 26px; background: transparent; box-shadow: none; color: #3a3a3c; font-size: 10px; font-weight: 600; letter-spacing: -0.2px;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .return-to-overview-btn:hover { transform: none; box-shadow: none; }
+            .return-to-overview-btn .arrow { font-size: 0; line-height: 0; display: block; }
+            .week-toast { bottom: 108px; }
+        }
+        @media (prefers-color-scheme: dark) {
+            @media (max-width: 768px) {
+                .floating-week-nav { background: rgba(40, 40, 46, 0.72); border-color: rgba(255, 255, 255, 0.12); }
+                .float-nav-btn, .float-refresh-btn, .return-to-overview-btn { color: #e5e5ea; }
+                .float-today-btn { color: #fff; }
+            }
+        }
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            @media (max-width: 768px) { .floating-week-nav { background: rgba(250, 250, 252, 0.96); } }
         }
     </style>
 </head>
@@ -1203,17 +1247,16 @@
 
     <div class="floating-week-nav" id="floatingWeekNav">
         <button type="button" class="float-refresh-btn refresh-btn" data-refresh title="새로고침 (일정·레포트 최신화)">
-            <span class="refresh-icon">↻</span><span>새로고침</span>
+            <span class="refresh-icon"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.7-6"/><path d="M20 4.5V9h-4.5"/></svg></span><span>새로고침</span>
         </button>
         <button type="button" class="float-nav-btn" id="prevWeekBtn" title="이전 주차로 이동">
-            <span class="arrow">▲</span><span>전주</span>
+            <span class="arrow"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14.5l6-6 6 6"/></svg></span><span>전주</span>
         </button>
         <button type="button" class="float-nav-btn float-today-btn" id="goToTodayBtn" title="오늘 날짜로 이동">
-            <span>오늘</span>
-            <span class="float-today-week" id="floatingWeekLabel">-</span>
+            <svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span class="float-today-text">오늘 · <span class="float-today-week" id="floatingWeekLabel">-</span></span>
         </button>
         <button type="button" class="float-nav-btn" id="nextWeekBtn" title="다음 주차로 이동">
-            <span class="arrow">▼</span><span>차주</span>
+            <span class="arrow"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg></span><span>차주</span>
         </button>
     </div>
 
@@ -1221,7 +1264,7 @@
          주간 전체보기 모드에서는 body.overview-fullscreen에 의해
          floating-week-nav와 함께 자동으로 숨겨지지 않으므로 JS에서 직접 표시/숨김 제어 -->
     <button type="button" class="return-to-overview-btn" id="returnToOverviewBtn" title="전체보기">
-        <span class="arrow">◀</span><span>전체보기</span>
+        <span class="arrow"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg></span><span>전체보기</span>
     </button>
 
     <div class="week-toast" id="weekToast"></div>
