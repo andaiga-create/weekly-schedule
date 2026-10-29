@@ -1096,6 +1096,31 @@
         .rp-lock { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; border-radius: 10px; padding: 12px 14px; }
         .rp-lock .rp-hint { color: #2e7d32; }
         .rp-warn { background: #fff4e5; border: 1px solid #ffcc80; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        /* ===== 모바일(아이폰): 좌우폭 최대 활용 + 레포트 버튼 한 줄 균등 배치 ===== */
+        @media (max-width: 768px) {
+            body { padding: 0; }
+            .container { border-radius: 0; box-shadow: none; max-width: 100%; }
+            .header { padding: 14px 12px; }
+            .filters { padding: 14px 12px; gap: 12px; }
+            .stats { padding: 12px; gap: 14px; }
+            .content { padding: 10px 6px 90px; }
+            .week-header { padding: 14px 14px; margin-bottom: 12px; border-radius: 10px; }
+            .week-title { font-size: 20px; }
+            .schedule-grid { gap: 10px; }
+            .schedule-card { padding: 14px 12px; border-radius: 10px; }
+            .card-header { margin-bottom: 14px; padding-bottom: 12px; }
+            .info-row { grid-template-columns: 1fr; gap: 4px; }
+            .rp-row { margin: 14px -12px -14px; padding: 10px 10px 12px 14px; gap: 8px; }
+            .rp-acts { order: 3; width: 100%; margin-left: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+            .rp-btn { white-space: nowrap; padding: 0 2px; min-height: 42px; font-size: 14px; letter-spacing: -0.3px; }
+            /* 하단 고정 가로 바: 본문(카드 버튼)을 가리지 않고 화면 폭을 최대로 활용 */
+            .content { padding-bottom: 96px; }
+            .floating-week-nav { left: auto; right: 0; bottom: 0; width: calc(100% - 96px); flex-direction: row; gap: 6px; padding: 7px 7px calc(7px + env(safe-area-inset-bottom, 0px)) 4px; border-radius: 0; box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18); }
+            .float-nav-btn, .float-refresh-btn { flex: 1 1 0; width: auto; min-width: 0; height: 48px; padding: 4px 2px; margin: 0; font-size: 11px; border-radius: 11px; }
+            .float-refresh-btn .refresh-icon { font-size: 16px; }
+            .return-to-overview-btn { left: 0; bottom: 0; width: 96px; height: calc(62px + env(safe-area-inset-bottom, 0px)); padding: 0 6px env(safe-area-inset-bottom, 0px); justify-content: center; border-radius: 0; font-size: 13px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18); }
+            .week-toast { bottom: 84px; }
+        }
     </style>
 </head>
 <body>
