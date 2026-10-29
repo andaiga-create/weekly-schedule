@@ -1085,6 +1085,14 @@
         .rp-month:first-of-type { border-top: 0; }
         .rp-box p { white-space: pre-line; }
 
+        .rp-ph-item { display: flex; gap: 10px; background: var(--rp-surface); border: 1px solid var(--rp-line); border-radius: 10px; padding: 10px; }
+        .rp-ph-item > img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; flex: none; background: #eee; }
+        .rp-ph-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+        .rp-ph-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .rp-ph-top .rp-btn { min-height: 34px; padding: 0 10px; }
+        .rp-btn:disabled { opacity: 0.4; }
+        .rp-ph-note { width: 100%; font: inherit; font-size: 15px; line-height: 1.5; min-height: 64px; resize: vertical; border: 1px solid var(--rp-line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--rp-ink); }
+        .rp-ph-note:focus { outline: 2px solid var(--rp-accent); border-color: var(--rp-accent); }
         .rp-lock { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; border-radius: 10px; padding: 12px 14px; }
         .rp-lock .rp-hint { color: #2e7d32; }
         .rp-warn { background: #fff4e5; border: 1px solid #ffcc80; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -1233,6 +1241,12 @@
         <div class="rp-head"><button class="rp-x" type="button" data-rp-close="rpCfgSheet" aria-label="닫기">닫기</button><h2>레포트 저장소</h2></div>
         <div class="rp-main"><div class="rp-in" id="rpCfgBody"></div></div>
         <div class="rp-foot"><button class="rp-big" type="button" data-rp-close="rpCfgSheet">닫기</button><button class="rp-big pri" type="button" id="rpCfgSave">저장 후 동기화</button></div>
+    </section>
+
+    <section class="rp-sheet" id="rpPhSheet" hidden>
+        <div class="rp-head"><button class="rp-x" type="button" data-rp-close="rpPhSheet" aria-label="닫기">닫기</button><h2 id="rpPhTitle">사진첨부</h2></div>
+        <div class="rp-main"><div class="rp-in" id="rpPhBody"></div></div>
+        <div class="rp-foot" id="rpPhFoot"></div>
     </section>
 
     <div class="rp-toast" id="rpToast" hidden></div>
@@ -2492,7 +2506,8 @@
                 return '<div class="rp-row" data-rp-uid="' + u + '"><span class="rp-label">레포트</span><span class="rp-pill ' + st[0] + '">' + st[1] + '</span><span class="rp-acts">' +
                     (r && r.reg ? '<button type="button" class="rp-btn" data-rp-act="view" data-rp-uid="' + u + '">보기</button>' : '') +
                     (locked(r) ? '' : '<button type="button" class="rp-btn" data-rp-act="reg" data-rp-uid="' + u + '">등록</button>') +
-                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '열람' : '작성') + '</button></span></div>';
+                    '<button type="button" class="rp-btn pri" data-rp-act="write" data-rp-uid="' + u + '">' + (locked(r) ? '수정' : '작성') + '</button>' +
+                    '<button type="button" class="rp-btn" data-rp-act="photo" data-rp-uid="' + u + '">사진첨부' + (r && r.photo ? ' (' + esc(r.photo.count) + ')' : '') + '</button></span></div>';
             };
             function refreshRow(uid) {
                 var el = document.querySelector('.schedule-card[data-uid="' + uid + '"] .rp-row'), s = sch(uid);
@@ -2502,7 +2517,7 @@
                 var b = e.target.closest('[data-rp-act]');
                 if (b) {
                     var uid = b.getAttribute('data-rp-uid'), a = b.getAttribute('data-rp-act');
-                    if (a === 'reg') openReg(uid); else if (a === 'write') openWrite(uid); else if (a === 'view') openPreview(uid);
+                    if (a === 'reg') openReg(uid); else if (a === 'write') openWrite(uid); else if (a === 'view') openPreview(uid); else if (a === 'photo') openPhoto(uid);
                     return;
                 }
                 var c = e.target.closest('[data-rp-close]');
@@ -2512,7 +2527,7 @@
             function openSheet(id) { $(id).hidden = false; document.body.classList.add('rp-open'); }
             function closeSheet(id) {
                 $(id).hidden = true;
-                var any = ['rpRegSheet', 'rpWrSheet', 'rpSignSheet', 'rpPvSheet', 'rpCfgSheet'].some(function (x) { return !$(x).hidden; });
+                var any = ['rpRegSheet', 'rpWrSheet', 'rpSignSheet', 'rpPvSheet', 'rpCfgSheet', 'rpPhSheet'].some(function (x) { return !$(x).hidden; });
                 if (!any) document.body.classList.remove('rp-open');
                 if (curUid != null) refreshRow(curUid);
             }
@@ -2951,6 +2966,262 @@
                 var sh = e.target.closest('[data-rp-share]'); if (sh) sharePdf(sh.getAttribute('data-rp-share'));
             });
 
+            /* ===== 사진첨부: 사진 여러 장 → A4 한 장에 4장(2×2) + 사진별 주석 → PDF =====
+               - 원본은 저장하지 않음. 1400px 축소본만 이 기기(IndexedDB)에 임시 보관.
+               - 저장소(reports/월/…_photos.pdf)에는 PDF만 올라감. 월 폴더 삭제 시 레포트와 함께 삭제됨. */
+            var IDBP = null, memKV = {};
+            function idb() {
+                if (IDBP) return IDBP;
+                IDBP = new Promise(function (res, rej) {
+                    try {
+                        var q = indexedDB.open('asr_photos_v1', 1);
+                        q.onupgradeneeded = function () { q.result.createObjectStore('kv'); };
+                        q.onsuccess = function () { res(q.result); };
+                        q.onerror = function () { rej(q.error); };
+                    } catch (e) { rej(e); }
+                });
+                return IDBP;
+            }
+            function idbGet(k) {
+                return idb().then(function (db) {
+                    return new Promise(function (res, rej) { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { res(q.result); }; q.onerror = function () { rej(q.error); }; });
+                }).then(function (v) { return v === undefined ? memKV[k] : v; }, function () { return memKV[k]; });
+            }
+            function idbSet(k, v) {
+                memKV[k] = v;
+                return idb().then(function (db) {
+                    return new Promise(function (res, rej) { var tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = function () { res(); }; tx.onerror = function () { rej(tx.error); }; });
+                }).catch(function () {});
+            }
+            function idbDel(k) {
+                delete memKV[k];
+                return idb().then(function (db) {
+                    return new Promise(function (res, rej) { var tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = function () { res(); }; tx.onerror = function () { rej(tx.error); }; });
+                }).catch(function () {});
+            }
+            function blobB64(blob) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1] || ''); }; fr.onerror = function () { rej(fr.error); }; fr.readAsDataURL(blob); }); }
+            function b64bytes(b) { var bin = atob(String(b).replace(/\s/g, '')), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+            function photoPath(key) { return pathFor(key).replace(/\.json$/, '_photos.pdf'); }
+
+            var PHS = { uid: null, key: '', photos: [], mode: 'edit', busy: false }, MAXPH = 40, phSaveT = null;
+            function phPersist() { clearTimeout(phSaveT); return idbSet('p:' + PHS.key, PHS.photos); }
+            function readPhoto(file) {
+                return new Promise(function (res, rej) {
+                    var u = URL.createObjectURL(file), im = new Image();
+                    im.onload = function () {
+                        var w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, 1400 / Math.max(w, h));
+                        var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+                        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+                        URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg', 0.82));
+                    };
+                    im.onerror = function () { URL.revokeObjectURL(u); rej(new Error('img')); };
+                    im.src = u;
+                });
+            }
+            function openPhoto(uid) {
+                var s = sch(uid); if (!s) return;
+                curUid = uid;
+                PHS = { uid: uid, key: rkey(s), photos: [], mode: 'edit', busy: false };
+                $('rpPhTitle').textContent = '사진첨부 · ' + (s.호선 || s.장비 || '');
+                openSheet('rpPhSheet'); drawPhoto();
+                var key = PHS.key;
+                idbGet('p:' + key).then(function (v) { if (PHS.key === key && Array.isArray(v) && v.length && !PHS.photos.length) { PHS.photos = v; if (PHS.mode === 'edit') drawPhoto(); } });
+            }
+            function phInfo() {
+                var s = sch(PHS.uid), r = S.reports[PHS.key], g = cleanData((r && r.reg) || prefill(s));
+                return { hull: g.hull || s.호선 || '', equip: g.equip || s.장비 || '', date: (r && r.workDate) || s.일자 || today(), r: r, g: g };
+            }
+            function photoName() {
+                var i = phInfo();
+                return 'AS_Photo_' + safePart(i.g.receiptNo) + '_' + safePart(i.g.hull) + '_' + safePart(i.g.equip) + '_' + safePart((i.r && i.r.workDate) || today()) + '.pdf';
+            }
+            function drawPhoto() {
+                var r = S.reports[PHS.key], n = PHS.photos.length, body = '', foot = '';
+                $('rpPhTitle').scrollLeft = 0;
+                if (PHS.mode === 'preview') {
+                    body = '<p class="rp-hint" id="rpPhPvMsg">미리보기를 만드는 중입니다…</p><div id="rpPhPvList"></div>';
+                    foot = '<button class="rp-big" type="button" data-ph="edit">편집으로</button><button class="rp-big pri" type="button" data-ph="save">PDF 저장</button>';
+                } else {
+                    body = '<div class="rp-drop"><b>핸드폰 사진첩에서 사진 선택</b><p class="rp-hint">여러 장을 한 번에 고를 수 있습니다. A4 한 장에 4장씩 들어가고, 사진마다 아래에 주석 칸이 생깁니다. 원본은 저장하지 않으며 저장소에는 PDF만 올라갑니다.</p>' +
+                        '<input id="rpPhIn" type="file" accept="image/*" multiple hidden><button class="rp-big pri" type="button" data-ph="pick"' + (PHS.busy ? ' disabled' : '') + '>' + (PHS.busy ? '사진 불러오는 중…' : '사진 선택') + '</button></div>';
+                    if (r && r.photo) {
+                        body += '<div class="rp-box"><h3>저장된 사진 PDF</h3><p>사진 ' + esc(r.photo.count) + '장 · ' + esc((r.photo.at || '').slice(0, 16).replace('T', ' ')) + '\n' + esc(r.photo.name || '') + '\n<span class="rp-hint">' + (r.photoPending ? '저장소 전송 대기 중' : '저장소에 저장됨') + '</span></p>' +
+                            '<div class="rp-actions" style="margin-top:10px"><button class="rp-big" type="button" data-ph="dl">다운로드</button>' + (canShare() ? '<button class="rp-big" type="button" data-ph="share">공유</button>' : '') + '<button class="rp-big" type="button" data-ph="del">PDF 삭제</button></div></div>';
+                    }
+                    if (n) {
+                        body += '<div class="rp-month" style="border-top:0;padding:0"><b>사진 ' + n + '장 · A4 ' + Math.ceil(n / 4) + '장</b><button type="button" class="rp-btn" data-ph="clear">목록 비우기</button></div>';
+                        body += PHS.photos.map(function (p, i) {
+                            return '<div class="rp-ph-item" data-i="' + i + '"><img alt="사진 ' + (i + 1) + '" src="' + p.src + '"><div class="rp-ph-body"><div class="rp-ph-top"><b>사진 ' + (i + 1) + '</b><span class="rp-acts">' +
+                                '<button type="button" class="rp-btn" data-ph="up"' + (i === 0 ? ' disabled' : '') + '>▲</button><button type="button" class="rp-btn" data-ph="dn"' + (i === n - 1 ? ' disabled' : '') + '>▼</button><button type="button" class="rp-btn" data-ph="rm">삭제</button></span></div>' +
+                                '<textarea class="rp-ph-note" data-i="' + i + '" placeholder="주석 (사진 아래 칸에 들어갑니다)">' + esc(p.note || '') + '</textarea></div></div>';
+                        }).join('');
+                    } else {
+                        body += '<p class="rp-hint">선택한 사진이 없습니다.</p>';
+                    }
+                    foot = '<button class="rp-big" type="button" data-ph="preview"' + (n ? '' : ' disabled') + '>미리보기</button><button class="rp-big pri" type="button" data-ph="save"' + (n ? '' : ' disabled') + '>PDF 저장</button>';
+                }
+                var main = $('rpPhSheet').querySelector('.rp-main'), top = main.scrollTop;
+                $('rpPhBody').innerHTML = body; $('rpPhFoot').innerHTML = foot; main.scrollTop = PHS.mode === 'edit' ? top : 0;
+                if (PHS.mode === 'preview') showPhotoPreview();
+            }
+            async function showPhotoPreview() {
+                try {
+                    var pages = await renderPhotoPages(PHS.photos, phInfo(), 900);
+                    if (PHS.mode !== 'preview') return;
+                    $('rpPhPvList').innerHTML = pages.map(function (c, i) { return '<div class="rp-a4box" style="margin-bottom:12px"><img alt="미리보기 ' + (i + 1) + '쪽" style="display:block;width:100%" src="' + c.toDataURL('image/jpeg', 0.8) + '"></div>'; }).join('');
+                    $('rpPhPvMsg').textContent = 'A4 ' + pages.length + '장 · 사진 ' + PHS.photos.length + '장 (저장 전 미리보기)';
+                } catch (e) { if ($('rpPhPvMsg')) $('rpPhPvMsg').textContent = '미리보기를 만들지 못했습니다.'; }
+            }
+            async function renderPhotoPages(list, info, W) {
+                var k = W / PW, H = Math.round(W * PH / PW), fam = getComputedStyle(document.body).fontFamily;
+                var imgs = await Promise.all(list.map(function (p) { return loadImg(p.src); }));
+                try { await document.fonts.ready; } catch (e) {}
+                var M = 14, MB = 24, G = 8, cw = (PW - 2 * M - G) / 2, ch = (PH - M - MB - G) / 2, phH = ch * 0.74, pages = Math.max(1, Math.ceil(list.length / 4)), out = [];
+                for (var pg = 0; pg < pages; pg++) {
+                    var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+                    var c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, W, H);
+                    for (var j = 0; j < 4; j++) {
+                        var idx = pg * 4 + j; if (idx >= list.length) break;
+                        var x0 = (M + (j % 2) * (cw + G)) * k, y0 = (M + Math.floor(j / 2) * (ch + G)) * k;
+                        c.strokeStyle = '#9aa0a6'; c.lineWidth = Math.max(1, 0.6 * k); c.strokeRect(x0, y0, cw * k, ch * k);
+                        var bx = x0 + 3 * k, by = y0 + 3 * k, bw = (cw - 6) * k, bh = (phH - 3) * k;
+                        c.fillStyle = '#f2f3f5'; c.fillRect(bx, by, bw, bh);
+                        var im = imgs[idx], sc = Math.min(bw / im.naturalWidth, bh / im.naturalHeight), dw = im.naturalWidth * sc, dh = im.naturalHeight * sc;
+                        c.drawImage(im, bx + (bw - dw) / 2, by + (bh - dh) / 2, dw, dh);
+                        c.fillStyle = 'rgba(0,0,0,0.68)'; c.fillRect(bx, by, 16 * k, 13 * k);
+                        c.fillStyle = '#fff'; c.font = 'bold ' + 9 * k + 'px ' + fam; c.textBaseline = 'middle'; c.textAlign = 'center'; c.fillText(String(idx + 1), bx + 8 * k, by + 6.7 * k); c.textAlign = 'left';
+                        var nx = x0 + 3 * k, ny = y0 + (phH + 3) * k, nw = (cw - 6) * k, nh = (ch - phH - 6) * k;
+                        c.strokeStyle = '#777'; c.lineWidth = Math.max(1, 0.5 * k); c.strokeRect(nx, ny, nw, nh);
+                        var note = String(list[idx].note || '').trim();
+                        if (note) {
+                            var sz = 9 * k, lines, pad = 3.5 * k; c.textBaseline = 'top'; c.fillStyle = '#111';
+                            for (var m = 0; m < 16; m++) { c.font = sz + 'px ' + fam; lines = wrapText(c, note, nw - pad * 2); if (lines.length * sz * 1.4 <= nh - pad * 2 || sz <= 5 * k) break; sz *= 0.93; }
+                            c.save(); c.beginPath(); c.rect(nx, ny, nw, nh); c.clip();
+                            lines.forEach(function (ln, q) { c.fillText(ln, nx + pad, ny + pad + q * sz * 1.4); });
+                            c.restore();
+                        }
+                    }
+                    c.fillStyle = '#555'; c.font = 7.5 * k + 'px ' + fam; c.textBaseline = 'alphabetic';
+                    c.fillText([info.hull, info.equip, info.date].filter(Boolean).join('  ·  '), M * k, (PH - 9) * k);
+                    c.textAlign = 'right'; c.fillText((pg + 1) + ' / ' + pages, (PW - M) * k, (PH - 9) * k); c.textAlign = 'left';
+                    out.push(cv);
+                }
+                return out;
+            }
+            function makePdfN(pages) {
+                var enc = new TextEncoder(), parts = [], off = [], len = 0, n = pages.length;
+                function push(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; }
+                var kids = pages.map(function (p, i) { return (3 + 3 * i) + ' 0 R'; }).join(' ');
+                push('%PDF-1.4\n');
+                off[1] = len; push('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
+                off[2] = len; push('2 0 obj\n<</Type/Pages/Kids[' + kids + ']/Count ' + n + '>>\nendobj\n');
+                pages.forEach(function (p, i) {
+                    var pid = 3 + 3 * i, iid = pid + 1, cid = pid + 2, content = 'q ' + PW + ' 0 0 ' + PH + ' 0 0 cm /Im0 Do Q';
+                    off[pid] = len; push(pid + ' 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 ' + PW + ' ' + PH + ']/Resources<</XObject<</Im0 ' + iid + ' 0 R>>>>/Contents ' + cid + ' 0 R>>\nendobj\n');
+                    off[iid] = len; push(iid + ' 0 obj\n<</Type/XObject/Subtype/Image/Width ' + p.w + '/Height ' + p.h + '/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ' + p.jpg.length + '>>\nstream\n'); push(p.jpg); push('\nendstream\nendobj\n');
+                    off[cid] = len; push(cid + ' 0 obj\n<</Length ' + content.length + '>>\nstream\n' + content + '\nendstream\nendobj\n');
+                });
+                var total = 3 + 3 * n, xr = len, x = 'xref\n0 ' + total + '\n0000000000 65535 f \n';
+                for (var i = 1; i < total; i++) x += String(off[i]).padStart(10, '0') + ' 00000 n \n';
+                push(x + 'trailer\n<</Size ' + total + '/Root 1 0 R>>\nstartxref\n' + xr + '\n%%EOF');
+                return new Blob(parts, { type: 'application/pdf' });
+            }
+            async function buildPhotoPdf() {
+                var canv = await renderPhotoPages(PHS.photos, phInfo(), 1240), pages = [];
+                for (var i = 0; i < canv.length; i++) {
+                    var jb = await new Promise(function (res) { canv[i].toBlob(res, 'image/jpeg', 0.85); });
+                    if (!jb) throw new Error('jpeg');
+                    pages.push({ jpg: new Uint8Array(await jb.arrayBuffer()), w: canv[i].width, h: canv[i].height });
+                }
+                return { blob: makePdfN(pages), name: photoName() };
+            }
+            async function savePhotoPdf() {
+                if (!PHS.photos.length || PHS.busy) return;
+                PHS.busy = true; toast('PDF를 만드는 중입니다…');
+                try {
+                    await phPersist();
+                    var f = await buildPhotoPdf(), key = PHS.key, r = getR(key), pp = photoPath(key);
+                    await idbSet('f:' + key, f.blob);
+                    r.photo = { path: pp, count: PHS.photos.length, at: new Date().toISOString(), name: f.name };
+                    r.photoPending = true; if (r.photoDel === pp) delete r.photoDel;
+                    save(key); syncSoon();
+                    PHS.mode = 'edit'; PHS.busy = false; drawPhoto(); toast('사진 PDF를 저장했습니다' + (ready() ? '' : ' (저장소 미연결: 이 기기에 보관)'));
+                } catch (e) { PHS.busy = false; toast('PDF 생성에 실패했습니다'); }
+            }
+            async function savedPhotoBlob() {
+                var key = PHS.key, r = S.reports[key];
+                var b = await idbGet('f:' + key);
+                if (b) return b;
+                if (r && r.photo && ready()) {
+                    var sha = S.remote[r.photo.path];
+                    if (!sha) { var rt = await remoteTree(); var f = rt.files.filter(function (x) { return x.path === r.photo.path; })[0]; sha = f && f.sha; }
+                    if (sha) { var bl = await gh('GET', '/git/blobs/' + sha); var blob = new Blob([b64bytes(bl.content)], { type: 'application/pdf' }); idbSet('f:' + key, blob); return blob; }
+                }
+                throw new Error('nofile');
+            }
+            async function downloadPhotoPdf() {
+                toast('PDF를 준비하는 중입니다…');
+                try {
+                    var blob = await savedPhotoBlob(), r = S.reports[PHS.key], a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob); a.download = (r.photo && r.photo.name) || photoName(); a.style.display = 'none';
+                    document.body.appendChild(a); a.click();
+                    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 6000);
+                    toast('PDF를 저장했습니다 · ' + a.download);
+                } catch (e) { toast('저장된 PDF를 찾을 수 없습니다'); }
+            }
+            async function sharePhotoPdf() {
+                try {
+                    var blob = await savedPhotoBlob(), r = S.reports[PHS.key], name = (r.photo && r.photo.name) || photoName();
+                    await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })], title: name });
+                } catch (e) { if (e && e.name !== 'AbortError') toast('공유할 수 없습니다. 다운로드를 이용해 주세요'); }
+            }
+            function deletePhotoPdf() {
+                var key = PHS.key, r = S.reports[key];
+                if (!r || !r.photo) return;
+                if (!window.confirm('저장된 사진 PDF를 삭제할까요?\n저장소에서도 삭제됩니다. (선택한 사진 목록은 그대로 남습니다)')) return;
+                r.photoDel = r.photo.path; delete r.photo; delete r.photoPending;
+                idbDel('f:' + key); save(key); syncSoon(); drawPhoto(); toast('사진 PDF를 삭제했습니다');
+            }
+            var phSheet = $('rpPhSheet');
+            phSheet.addEventListener('click', function (e) {
+                if (e.target.closest('[data-rp-close="rpPhSheet"]')) { phPersist(); return; }
+                var b = e.target.closest('[data-ph]'); if (!b || b.disabled) return;
+                var a = b.getAttribute('data-ph'), it = b.closest('.rp-ph-item'), i = it ? +it.getAttribute('data-i') : -1, L = PHS.photos;
+                if (a === 'pick') { var inp = $('rpPhIn'); if (inp) inp.click(); }
+                else if (a === 'up' && i > 0) { var t = L[i]; L[i] = L[i - 1]; L[i - 1] = t; phPersist(); drawPhoto(); }
+                else if (a === 'dn' && i >= 0 && i < L.length - 1) { var t2 = L[i]; L[i] = L[i + 1]; L[i + 1] = t2; phPersist(); drawPhoto(); }
+                else if (a === 'rm' && i >= 0) { L.splice(i, 1); phPersist(); drawPhoto(); }
+                else if (a === 'clear') { if (window.confirm('선택한 사진 ' + L.length + '장을 모두 지울까요?')) { PHS.photos = []; phPersist(); drawPhoto(); } }
+                else if (a === 'preview') { phPersist(); PHS.mode = 'preview'; drawPhoto(); }
+                else if (a === 'edit') { PHS.mode = 'edit'; drawPhoto(); }
+                else if (a === 'save') savePhotoPdf();
+                else if (a === 'dl') downloadPhotoPdf();
+                else if (a === 'share') sharePhotoPdf();
+                else if (a === 'del') deletePhotoPdf();
+            });
+            phSheet.addEventListener('input', function (e) {
+                if (!e.target.classList.contains('rp-ph-note')) return;
+                var p = PHS.photos[+e.target.getAttribute('data-i')]; if (!p) return;
+                p.note = e.target.value; clearTimeout(phSaveT); phSaveT = setTimeout(phPersist, 500);
+            });
+            phSheet.addEventListener('change', async function (e) {
+                if (e.target.id !== 'rpPhIn') return;
+                var files = Array.prototype.slice.call(e.target.files || []).filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name); });
+                e.target.value = '';
+                if (!files.length) return;
+                var room = MAXPH - PHS.photos.length;
+                if (room <= 0) { toast('사진은 최대 ' + MAXPH + '장까지 넣을 수 있습니다'); return; }
+                if (files.length > room) { files = files.slice(0, room); toast('최대 ' + MAXPH + '장까지만 추가했습니다'); }
+                var key = PHS.key; PHS.busy = true; drawPhoto();
+                var fail = 0;
+                for (var i = 0; i < files.length; i++) {
+                    try { var src = await readPhoto(files[i]); if (PHS.key !== key) return; PHS.photos.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 7), src: src, note: '' }); }
+                    catch (er) { fail++; }
+                }
+                PHS.busy = false; await phPersist(); drawPhoto();
+                if (fail) toast(fail + '장은 불러오지 못했습니다');
+            });
+
             /* ----- 저장소 동기화: GitHub 저장소의 reports/ 폴더(월별 하위 폴더)에 JSON으로 저장 ----- */
             var CFGKEY = 'asr_gh_cfg_v1';
             function loadCfg() {
@@ -3007,13 +3278,13 @@
                 var ent = (root.tree || []).filter(function (x) { return x.path === 'reports' && x.type === 'tree'; })[0], files = [];
                 if (ent) {
                     var t = await gh('GET', '/git/trees/' + ent.sha + '?recursive=1');
-                    (t.tree || []).forEach(function (x) { if (x.type === 'blob' && /\.json$/.test(x.path)) files.push({ path: 'reports/' + x.path, sha: x.sha, size: x.size || 0 }); });
+                    (t.tree || []).forEach(function (x) { if (x.type === 'blob' && /\.(json|pdf)$/.test(x.path)) files.push({ path: 'reports/' + x.path, sha: x.sha, size: x.size || 0 }); });
                 }
                 lastTree = { commitSha: commitSha, treeSha: commit.tree.sha, files: files };
                 return lastTree;
             }
             async function pull(rt) {
-                var todo = rt.files.filter(function (f) { return S.remote[f.path] !== f.sha; }), changed = 0;
+                var todo = rt.files.filter(function (f) { return /\.json$/.test(f.path) && S.remote[f.path] !== f.sha; }), changed = 0;
                 for (var i = 0; i < todo.length; i += 6) {
                     await Promise.all(todo.slice(i, i + 6).map(async function (f) {
                         var b = await gh('GET', '/git/blobs/' + f.sha), j;
@@ -3032,22 +3303,39 @@
                 var commit = await gh('POST', '/git/commits', { message: message, tree: tree.sha, parents: [rt.commitSha] });
                 await gh('PATCH', '/git/refs/heads/' + cfg.branch, { sha: commit.sha });
             }
+            function isDirty(r) { return !!(r && r.dirty && (r.reg || r.photo || r.photoDel)); }
             async function pushDirty(rt) {
-                var keys = Object.keys(S.reports).filter(function (k) { var r = S.reports[k]; return r.dirty && r.reg; });
+                var keys = Object.keys(S.reports).filter(function (k) { return isDirty(S.reports[k]); });
                 if (!keys.length) return 0;
-                var stamp = {}, paths = {};
-                var entries = keys.map(function (k) {
-                    var o = JSON.parse(JSON.stringify(S.reports[k])); delete o.dirty; o.key = k; stamp[k] = S.reports[k].updatedAt; paths[k] = pathFor(k);
-                    return { path: paths[k], mode: '100644', type: 'blob', content: JSON.stringify(o) };
+                var stamp = {}, paths = {}, pdfs = {}, entries = [], has = {}, N = '100644';
+                rt.files.forEach(function (f) { has[f.path] = 1; });
+                for (var i = 0; i < keys.length; i++) {
+                    var k = keys[i], r = S.reports[k], pp = photoPath(k);
+                    stamp[k] = r.updatedAt; paths[k] = pathFor(k);
+                    if (r.reg || r.photo) {
+                        var o = JSON.parse(JSON.stringify(r)); delete o.dirty; delete o.photoPending; delete o.photoDel; o.key = k;
+                        entries.push({ path: paths[k], mode: N, type: 'blob', content: JSON.stringify(o) });
+                    } else if (has[paths[k]]) {
+                        entries.push({ path: paths[k], mode: N, type: 'blob', sha: null });
+                    }
+                    if (r.photoDel && r.photoDel !== (r.photo && r.photo.path) && has[r.photoDel]) entries.push({ path: r.photoDel, mode: N, type: 'blob', sha: null });
+                    if (r.photo && r.photoPending) {
+                        var blob = await idbGet('f:' + k);
+                        if (blob) { var bl = await gh('POST', '/git/blobs', { content: await blobB64(blob), encoding: 'base64' }); entries.push({ path: pp, mode: N, type: 'blob', sha: bl.sha }); pdfs[k] = pp; }
+                    }
+                }
+                if (entries.length) await commitTree(rt, entries, 'reports: ' + keys.length + '건 동기화');
+                keys.forEach(function (k) {
+                    var r = S.reports[k]; if (!r || r.updatedAt !== stamp[k]) return;
+                    delete r.dirty; delete r.photoDel; if (pdfs[k]) delete r.photoPending;
+                    if (!r.reg && !r.photo) delete S.reports[k];
                 });
-                await commitTree(rt, entries, 'reports: ' + entries.length + '건 동기화');
-                keys.forEach(function (k) { if (S.reports[k] && S.reports[k].updatedAt === stamp[k]) delete S.reports[k].dirty; });
                 var rt2 = await remoteTree();
-                rt2.files.forEach(function (f) { keys.forEach(function (k) { if (paths[k] === f.path) S.remote[f.path] = f.sha; }); });
+                rt2.files.forEach(function (f) { keys.forEach(function (k) { if (paths[k] === f.path || pdfs[k] === f.path) S.remote[f.path] = f.sha; }); });
                 return keys.length;
             }
             var syncing = false, syncAgain = false, syncTimer = null, lastSync = 0, lastErr = '';
-            function pendingCount() { return Object.keys(S.reports).filter(function (k) { return S.reports[k].dirty && S.reports[k].reg; }).length; }
+            function pendingCount() { return Object.keys(S.reports).filter(function (k) { return isDirty(S.reports[k]); }).length; }
             function setState(st) {
                 var b = $('rpSyncBtn'); if (!b) return;
                 var map = { off: ['미연결', 'off'], idle: ['연결됨', 'ok'], sync: ['동기화 중…', 'sync'], ok: ['동기화됨', 'ok'], err: ['동기화 오류', 'err'] };
@@ -3091,14 +3379,14 @@
                 var rt = await remoteTree(), prefix = 'reports/' + month + '/';
                 var paths = rt.files.filter(function (f) { return f.path.indexOf(prefix) === 0; }).map(function (f) { return f.path; });
                 if (paths.length) await commitTree(rt, paths.map(function (p) { return { path: p, mode: '100644', type: 'blob', sha: null }; }), 'reports: ' + month + ' 폴더 삭제');
-                Object.keys(S.reports).forEach(function (k) { if (pathFor(k).indexOf(prefix) === 0) delete S.reports[k]; });
+                Object.keys(S.reports).forEach(function (k) { if (pathFor(k).indexOf(prefix) === 0) { delete S.reports[k]; idbDel('p:' + k); idbDel('f:' + k); } });
                 paths.forEach(function (p) { delete S.remote[p]; });
                 save(); await remoteTree(); refreshAllRows();
             }
             function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; }
             function drawCfg() {
                 var months = {};
-                (lastTree ? lastTree.files : []).forEach(function (f) { var m = f.path.split('/')[1]; (months[m] = months[m] || { n: 0, b: 0 }); months[m].n++; months[m].b += f.size; });
+                (lastTree ? lastTree.files : []).forEach(function (f) { var m = f.path.split('/')[1]; (months[m] = months[m] || { n: 0, p: 0, b: 0 }); if (/\.pdf$/.test(f.path)) months[m].p++; else months[m].n++; months[m].b += f.size; });
                 var ms = Object.keys(months).sort().reverse();
                 var h = '<div class="rp-box"><h3>연결 상태</h3><p id="rpCfgState">' + esc(stateText()) + '</p></div>' +
                     '<div class="rp-grid2"><div class="rp-field"><label for="rpcOwner">소유자<small>OWNER</small></label><input id="rpcOwner" type="text" autocapitalize="off" autocomplete="off" value="' + esc(cfg.owner) + '"></div>' +
@@ -3107,8 +3395,8 @@
                     '<div class="rp-field"><label for="rpcToken">접근 토큰<small>TOKEN</small></label><input id="rpcToken" type="password" autocapitalize="off" autocomplete="new-password" placeholder="' + (cfg.token ? '저장됨 (바꾸려면 새로 입력)' : 'github_pat_…') + '"></div>' +
                     '<p class="rp-hint">이 저장소만 선택한 Fine-grained 토큰에 Contents 읽기/쓰기 권한을 주면 됩니다. 토큰은 이 기기의 브라우저에만 저장되고, 기기마다 한 번씩 입력합니다. 브랜치를 새 이름(예: reports)으로 쓰면 index.html을 올릴 때 git pull 충돌이 생기지 않습니다.</p>' +
                     '<div class="rp-box"><h3>저장된 레포트 폴더 (reports/)</h3>' +
-                    (ms.length ? ms.map(function (m) { return '<div class="rp-month"><span><b>' + esc(m) + '</b> · ' + months[m].n + '건 · ' + fmtSize(months[m].b) + '</span><button type="button" class="rp-btn" data-rp-del="' + esc(m) + '">삭제</button></div>'; }).join('') : '<p class="rp-hint">' + (ready() ? '저장된 레포트가 없습니다.' : '연결하면 월별 폴더가 여기에 표시됩니다.') + '</p>') +
-                    '<p class="rp-hint" style="margin-top:8px">삭제하면 저장소의 해당 월 폴더와 이 기기의 같은 달 레포트가 지워집니다. git 기록에는 이전 내용이 남아 있어 저장소 용량은 바로 줄지 않습니다.</p></div>' +
+                    (ms.length ? ms.map(function (m) { return '<div class="rp-month"><span><b>' + esc(m) + '</b> · ' + months[m].n + '건' + (months[m].p ? ' · 사진PDF ' + months[m].p + '개' : '') + ' · ' + fmtSize(months[m].b) + '</span><button type="button" class="rp-btn" data-rp-del="' + esc(m) + '">삭제</button></div>'; }).join('') : '<p class="rp-hint">' + (ready() ? '저장된 레포트가 없습니다.' : '연결하면 월별 폴더가 여기에 표시됩니다.') + '</p>') +
+                    '<p class="rp-hint" style="margin-top:8px">삭제하면 저장소의 해당 월 폴더(레포트와 사진 PDF)와 이 기기의 같은 달 레포트·사진이 지워집니다. git 기록에는 이전 내용이 남아 있어 저장소 용량은 바로 줄지 않습니다.</p></div>' +
                     (cfg.token ? '<button class="rp-btn" type="button" id="rpCfgOff" style="align-self:flex-start">연결 해제 (이 기기의 토큰 삭제)</button>' : '');
                 $('rpCfgBody').innerHTML = h;
             }
