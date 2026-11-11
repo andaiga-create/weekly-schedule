@@ -3076,7 +3076,7 @@
             async function sharePdf(uid) {
                 try {
                     var f = await buildPdf(uid), file = new File([f.blob], f.name, { type: 'application/pdf' });
-                    await navigator.share({ files: [file], title: f.name });
+                    await navigator.share({ files: [file] }); /* 파일만 공유: title/text를 넣으면 카톡 등에서 blob: 주소가 별도 메시지로 붙음 */
                 } catch (e) { if (e && e.name !== 'AbortError') toast('공유할 수 없습니다. 다운로드를 이용해 주세요'); }
             }
             document.addEventListener('click', function (e) {
@@ -3290,7 +3290,7 @@
             async function sharePhotoPdf() {
                 try {
                     var blob = await savedPhotoBlob(), r = S.reports[PHS.key], name = (r.photo && r.photo.name) || photoName();
-                    await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })], title: name });
+                    await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })] }); /* 파일만 공유 */
                 } catch (e) { if (e && e.name !== 'AbortError') toast('공유할 수 없습니다. 다운로드를 이용해 주세요'); }
             }
             function deletePhotoPdf() {
